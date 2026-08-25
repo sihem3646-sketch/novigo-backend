@@ -65,9 +65,10 @@ app.get('/tts', async (req, res) => {
   }
 });
 
-// 0.0.0.0 = toutes les interfaces réseau (localhost + IP LAN), pour que le
-// téléphone (Expo Go) sur le même Wi-Fi puisse joindre le backend.
-app.listen(PORT, '0.0.0.0', () => {
+// On NE force PAS d'hôte : Node écoute alors sur toutes les interfaces (IPv4 + IPv6),
+// ce qui permet à la fois l'accès LAN (téléphone) ET la détection de port par
+// l'hébergeur (Render scanne en IPv6 — forcer 0.0.0.0/IPv4 seul le rend aveugle).
+app.listen(PORT, () => {
   // eslint-disable-next-line no-console
-  console.log(`Novigo backend sur http://localhost:${PORT} (LAN: http://0.0.0.0:${PORT})  (TTS ${ELEVEN_KEY && DEFAULT_VOICE ? 'prêt' : 'NON configuré'})`);
+  console.log(`Novigo backend sur le port ${PORT}  (TTS ${ELEVEN_KEY && DEFAULT_VOICE ? 'prêt' : 'NON configuré'})`);
 });

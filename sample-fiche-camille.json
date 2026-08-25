@@ -1,0 +1,69 @@
+{
+  "utilisateurId": "dev-1",
+  "misAJourLe": "2026-08-04T02:27:48.346Z",
+  "profil": {
+    "prenom": "Camille",
+    "moteur": "reconversion",
+    "momentDeVie": "Assistante de direction, veut sortir du salariat d'ici 18 mois."
+  },
+  "contraintes": {
+    "heuresParSemaine": 6,
+    "budgetPerdable": 1500,
+    "toleranceRisque": "moyenne"
+  },
+  "projet": {
+    "nom": "Atelier Reprise",
+    "probleme": "Les couturières amatrices n'osent pas se lancer en retouche payante.",
+    "pourQui": "Femmes 30-50 ans déjà équipées, en région lyonnaise.",
+    "solution": "Ateliers en petit groupe + kit de démarrage.",
+    "stade": "exploration",
+    "modeleEconomique": "Atelier payant à la place, 4 personnes max.",
+    "prix": "80€ la journée (non testé)"
+  },
+  "preuves": [
+    {
+      "quoi": "9 entretiens réalisés, 7 confirment le blocage",
+      "date": "2026-07-10",
+      "source": "mission adults-m03-c01"
+    },
+    {
+      "quoi": "2 personnes ont laissé leur mail pour être prévenues",
+      "date": "2026-07-18",
+      "source": "déclaré en conversation"
+    }
+  ],
+  "hypothesesATester": [
+    "Elles paieraient 80€ la journée",
+    "Un atelier en présentiel est préféré au distanciel"
+  ],
+  "progression": {
+    "mondeActuel": 4,
+    "leconsTerminees": 38,
+    "missionsRealisees": [
+      "adults-m01-c02-co01-l01",
+      "adults-m03-c01-co01-l02"
+    ],
+    "missionsEnAttente": [
+      "adults-m04-c01-co01-l01"
+    ]
+  },
+  "decisions": [
+    {
+      "quoi": "Commencer par les ateliers, pas la boutique en ligne",
+      "pourquoi": "Zéro stock, encaissement immédiat",
+      "date": "2026-07-12"
+    }
+  ],
+  "blocages": [
+    "N'ose pas annoncer un prix à voix haute"
+  ],
+  "prochaineAction": {
+    "quoi": "Contacter les 2 personnes inscrites pour proposer une date d'atelier test et demander 20€ d'acompte",
+    "pourQuand": "avant dimanche",
+    "definiLe": "2026-07-23"
+  },
+  "notes": [
+    "Se dévalorise vite quand une semaine passe sans avancer — recadrer sans complaisance.",
+    "A un réseau réel via son ancien club de couture, sous-exploité."
+  ]
+}

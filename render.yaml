@@ -1,0 +1,28 @@
+# render.yaml — Blueprint de déploiement du backend Novigo sur Render.
+# Render lit ce fichier et crée un service web Node. Les clés secrètes ont
+# `sync: false` : elles ne sont PAS dans le code, tu les saisiras dans le
+# tableau de bord Render (Environment) — elles restent privées.
+services:
+  - type: web
+    name: novigo-backend
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      # Secrets — à saisir dans Render (jamais dans le code).
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      # Valeurs non secrètes — déjà remplies.
+      - key: ELEVENLABS_VOICE_ID
+        value: EXAVITQu4vr4xnSDxMaL
+      - key: ELEVENLABS_MODEL
+        value: eleven_multilingual_v2
+      - key: NOVA_DEV_USER
+        value: dev-1
+      - key: NOVA_DAILY_LIMIT
+        value: "20"
+      # PORT est fourni automatiquement par Render (le serveur le lit déjà).

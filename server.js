@@ -14,6 +14,10 @@ app.use(express.json());
 // Auth (token Supabase) + quota quotidien + appel Mistral, tout côté serveur.
 app.use(require('./routes/nova'));
 
+// Annuaire des dispositifs d'accompagnement (lecture publique) :
+// GET /api/annuaire (filtres) + GET /api/annuaire/:id. Lecture Supabase serveur.
+app.use(require('./routes/annuaire'));
+
 const PORT = process.env.PORT || 8787;
 const ELEVEN_KEY = process.env.ELEVENLABS_API_KEY || '';
 // Voix par défaut : mets ici l'ID d'une voix jeune/ado française (ElevenLabs).

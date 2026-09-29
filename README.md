@@ -46,41 +46,68 @@ Dans `.env` :
 - `SUPABASE_JWT_SECRET` — **secret JWT** du projet Supabase (Dashboard → Settings →
   API → JWT Secret). Sert à vérifier le token de l'utilisateur ; le `userId` de
   confiance est le `sub` du token — **le `userId` du body n'est jamais utilisé**.
-- `NOVA_DAILY_LIMIT` — plafond de messages `/api/nova` par utilisateur et par jour
+- `NOVA_DAILY_LIMIT` — messages `/api/nova` par appareil (ou compte) et par jour
   (défaut : 20).
-- `NOVA_DEV_USER` — **dev uniquement** : force un `userId` quand aucun token n'est
-  fourni, pour tester en local sans Supabase. **Laisser vide en production.**
+- `NOVA_GLOBAL_DAILY_LIMIT` — plafond de messages par jour pour **tous les gratuits**
+  (défaut : 3000) : garde-fou de coût.
+- `NOVA_UNLIMITED_DAILY_LIMIT` / `NOVA_UNLIMITED_GLOBAL_DAILY_LIMIT` — accès illimité
+  (code testeur, puis abonnés) : aucun compteur affiché, seulement une **sécurité
+  invisible** par personne (défaut 500/jour) et un budget global séparé (défaut 5000).
+- `NOVA_VIP_CODE_HASHES` — empreintes SHA-256 (séparées par des virgules) des codes
+  testeur acceptés dans `X-Novigo-Vip` (majuscules/chiffres seulement, tirets retirés).
+  Par défaut : l'empreinte du code testeur de la fondatrice (voir `middleware/auth.js`).
+- `MISTRAL_API_URL` — **tests locaux uniquement** (faux serveur Mistral).
+- `TTS_DAILY_CHAR_LIMIT` / `TTS_IP_DAILY_LIMIT` — plafonds de la voix IA (`/tts`) :
+  caractères par jour pour tout le service (défaut 20 000) et requêtes par IP et
+  par jour (défaut 300).
+- `NOVA_DEV_USER` — **transition** : pour les anciennes versions de l'app qui
+  n'envoient pas d'identifiant d'appareil, identité dérivée de l'IP (hachée),
+  jamais partagée. **À vider quand toutes les apps sont à jour.**
 
 ## Routes
 
-Les deux exigent l'en-tête `Authorization: Bearer <token d'accès Supabase>`.
+Identité (voir `middleware/auth.js`), dans cet ordre :
 
+1. `Authorization: Bearer <token d'accès Supabase>` (compte) ;
+2. sans compte : `X-Novigo-Device: <UUID v4 aléatoire de l'appareil>` +
+   `X-Novigo-Profile: <id du profil actif>` → quota **par appareil**, mémoire de
+   Nova **par appareil et par profil** ;
+3. anciennes versions de l'app : repli `NOVA_DEV_USER` (IP hachée).
+
+- **`GET /api/nova/quota`** → `{ unlimited, limit, remaining }` (ne consomme rien ;
+  pour un accès illimité, la sécurité invisible n'est pas révélée).
 - **`POST /api/nova`** → `{ messages, lessonId?, lessonContext? }`
   Réponse du coach en **streaming SSE** (chunks compatibles OpenAI/Mistral).
   `lessonContext` = petit texte (titre + objectif de la leçon) fourni par l'app ;
-  injecté dans `{{CONTEXTE_LECON}}`. Erreur **429** si le quota du jour est atteint.
+  injecté dans `{{CONTEXTE_LECON}}`. Erreur **429** si le quota du jour est atteint ;
+  **503 `{ retry: true }`** si Mistral échoue (le message est alors rendu).
 - **`POST /api/nova/memoire`** → `{ messages }`
   Applique le 2ᵉ prompt pour mettre à jour la fiche, **valide le JSON avec Zod**
   (`fiche/ficheSchema.js`, limites `LIMITES_FICHE` incluses). Si la validation
   échoue → **log + fiche précédente conservée** (`{ ok:false, kept:true }`).
 
-## ⚠️ Persistance — à lire avant de déployer
+## Persistance : Supabase (sinon fichiers locaux)
 
-Par défaut, les fiches sont écrites dans **`data/fiches/<userId>.json`** (disque
-local, dossier ignoré par git). C'est fiable **en local**, mais sur un hébergement
-à **disque éphémère** (Render free, Railway, Fly sans volume, serverless…), les
-fiches sont **perdues à chaque redéploiement**.
+La mémoire de Nova (fiches) et les compteurs de quota vont dans **Supabase** dès
+que les tables existent : lancer **une fois** `supabase/nova.sql` dans Supabase →
+SQL Editor (tables `nova_fiches`, `nova_usage`, fonction `nova_consume`, RLS sans
+règle = accès serveur uniquement). Le serveur le détecte tout seul (au plus
+10 min), sans redéploiement. Il utilise `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`.
 
-Avant tout déploiement : remplacer l'adaptateur de `fiche/ficheStore.js` par un
-**adaptateur Supabase** (table `fiches`, écriture via la clé `service_role` côté
-serveur). Seul ce fichier change — les routes n'utilisent que `loadFiche` /
-`saveFiche`. Idem pour `fiche/usageStore.js` (compteur de quota).
+Tant que ce n'est pas fait, repli sur `data/fiches/*.json` et `data/usage.json`
+(disque local, ignoré par git) : **perdus à chaque redémarrage** sur un hébergement
+à disque éphémère (Render free).
 
 ## Sécurité (état actuel)
 
-- Routes fermées par vérification du **token Supabase** (pas de route ouverte).
+- Routes Nova : token Supabase vérifié, ou identifiant d'appareil (quota par appareil
+  + plafond global de coût). Aucun identifiant n'est jamais partagé entre utilisateurs.
 - Le `userId` provient **toujours** du token vérifié, jamais du client.
 - Aucune donnée sensible n'est écrite dans la fiche (santé, opinions, coordonnées
   de tiers, bancaire) — règle portée par le prompt et le schéma.
-- Le repli `NOVA_DEV_USER` est **provisoire / dev** : à désactiver en production.
+- Le repli `NOVA_DEV_USER` est **transitoire** : à vider quand toutes les apps envoient
+  `X-Novigo-Device`.
+- Un identifiant d'appareil peut être fabriqué à volonté : le plafond global
+  (`NOVA_GLOBAL_DAILY_LIMIT`) borne le coût. Pour aller plus loin : comptes (anonymes)
+  Supabase + vérification d'intégrité de l'app (App Attest / Play Integrity).
 

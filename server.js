@@ -7,6 +7,8 @@ const express = require('express');
 const cors = require('cors');
 
 const app = express();
+// Derrière le proxy de l'hébergeur : req.ip = adresse du client (X-Forwarded-For).
+app.set('trust proxy', true);
 app.use(cors());
 app.use(express.json());
 
@@ -24,6 +26,30 @@ const ELEVEN_KEY = process.env.ELEVENLABS_API_KEY || '';
 const DEFAULT_VOICE = process.env.ELEVENLABS_VOICE_ID || '';
 const MODEL = process.env.ELEVENLABS_MODEL || 'eleven_multilingual_v2';
 
+// Garde-fous de coût de la voix IA (route publique) : caractères par jour pour tout
+// le service, et requêtes par jour par adresse IP. Compteurs en mémoire (remis à
+// zéro au redémarrage) : l'abonnement ElevenLabs reste la limite ultime.
+const TTS_DAILY_CHAR_LIMIT = Number(process.env.TTS_DAILY_CHAR_LIMIT) || 20000;
+const TTS_IP_DAILY_LIMIT = Number(process.env.TTS_IP_DAILY_LIMIT) || 300;
+let ttsDay = '';
+let ttsChars = 0;
+const ttsByIp = new Map();
+
+/** Réserve le budget d'une lecture ; false si un plafond du jour est atteint. */
+function reserveTts(ip, chars) {
+  const d = new Date().toISOString().slice(0, 10);
+  if (d !== ttsDay) {
+    ttsDay = d;
+    ttsChars = 0;
+    ttsByIp.clear();
+  }
+  const n = ttsByIp.get(ip) || 0;
+  if (n >= TTS_IP_DAILY_LIMIT || ttsChars + chars > TTS_DAILY_CHAR_LIMIT) return false;
+  ttsByIp.set(ip, n + 1);
+  ttsChars += chars;
+  return true;
+}
+
 app.get('/health', (_req, res) => {
   res.json({ ok: true, ttsConfigured: Boolean(ELEVEN_KEY && DEFAULT_VOICE) });
 });
@@ -38,6 +64,9 @@ app.get('/tts', async (req, res) => {
   }
   if (!text) {
     return res.status(400).json({ error: 'Paramètre "text" requis.' });
+  }
+  if (!reserveTts(req.ip || '', text.length)) {
+    return res.status(429).json({ error: 'Voix IA indisponible pour aujourd’hui (plafond atteint).' });
   }
 
   try {

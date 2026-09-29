@@ -2,7 +2,8 @@
 // Client minimal de l'API Mistral (fetch natif). La clé MISTRAL_API_KEY reste
 // côté serveur. max_tokens borné pour garder des réponses courtes et le coût bas.
 
-const MISTRAL_URL = 'https://api.mistral.ai/v1/chat/completions';
+// MISTRAL_API_URL : uniquement pour tester en local contre un faux serveur.
+const MISTRAL_URL = process.env.MISTRAL_API_URL || 'https://api.mistral.ai/v1/chat/completions';
 const MODEL = 'mistral-small-latest';
 
 function apiKey() {

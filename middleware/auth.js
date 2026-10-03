@@ -1,37 +1,30 @@
 // middleware/auth.js
-// Identité de l'appelant des routes /api/nova. Trois cas, dans cet ordre :
+// Identité de l'appelant des routes /api/nova : TOUJOURS un compte Supabase.
 //
-// 1) Compte Supabase : Authorization: Bearer <jwt>, vérifié avec
-//    SUPABASE_JWT_SECRET. Identité de confiance = token.sub.
-// 2) Sans compte (cas de l'app aujourd'hui) : l'app envoie un identifiant
-//    d'APPAREIL aléatoire (X-Novigo-Device, UUID v4) et le profil actif
-//    (X-Novigo-Profile). Quota = par appareil ; mémoire de Nova = par appareil
-//    ET par profil (un ado ne voit pas le projet d'un adulte sur la même tablette).
-// 3) Anciennes versions de l'app (aucun en-tête) : seulement si NOVA_DEV_USER est
-//    défini, identité dérivée de l'adresse IP (hachée) — plus jamais une identité
-//    PARTAGÉE par tout le monde. À désactiver (vider NOVA_DEV_USER) une fois
-//    toutes les apps à jour.
-//
-// Le userId éventuellement envoyé dans le body n'est JAMAIS utilisé.
-//   req.userId    -> clé de la fiche (mémoire de Nova)
-//   req.quotaId   -> clé du quota quotidien
-//   req.unlimited -> accès « illimité » (code testeur aujourd'hui, abonnés demain) :
-//                    pas de compteur visible, seulement une sécurité invisible.
+//  1) Jeton de session (Authorization: Bearer <jwt>) vérifié par le serveur
+//     (signature, émetteur, audience, expiration — voir auth/verifyToken.js).
+//     Compte de confiance = `sub` du jeton. Sans jeton valide : 401.
+//  2) Profil actif (X-Novigo-Profile = id du profil) : il doit appartenir à CE
+//     compte, vérifié en base (jamais supposé) ; sinon 403. Pas de Nova dans
+//     l'espace Enfant.
+//  3) Code testeur (X-Novigo-Vip) : vérifié par empreinte ; donne la formule
+//     « tester » à ce compte, le temps de la requête. Les compteurs restent ceux
+//     du COMPTE.
+// Plus d'identité d'appareil ni d'adresse IP : un identifiant envoyé par l'app
+// n'est jamais cru.
+//   req.accountId -> clé des quotas (par compte)
+//   req.learnerId -> clé de la mémoire de Nova (par profil)
+//   req.plan      -> 'free' | 'tester' (et plus tard 'premium')
 
 const crypto = require('crypto');
-const jwt = require('jsonwebtoken');
 
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const PROFILE_ID = /^[a-z0-9_-]{4,64}$/i;
+const { verifySupabaseToken, UUID } = require('../auth/verifyToken');
+const sb = require('../fiche/supabase');
 
-// Codes testeur (accès illimité) : on ne garde que leur empreinte SHA-256 (le dépôt
-// est public ; les codes font 24 caractères aléatoires, impossibles à deviner).
+// Codes testeur : on ne garde que leur empreinte SHA-256 (le dépôt est public ;
+// les codes font 24 caractères aléatoires, impossibles à deviner).
 // NOVA_VIP_CODE_HASHES (liste séparée par des virgules) remplace la valeur par défaut.
 const DEFAULT_VIP_HASHES = ['ae5b64e3f2a5aa41b31105fc60e72b5c3cea85ed21ed0e80746ab4b81f108192'];
-
-function hash(value) {
-  return crypto.createHash('sha256').update(String(value)).digest('hex').slice(0, 24);
-}
 
 function vipHashes() {
   const fromEnv = (process.env.NOVA_VIP_CODE_HASHES || '').split(',').map((h) => h.trim().toLowerCase()).filter(Boolean);
@@ -46,50 +39,65 @@ function isVip(req) {
   return vipHashes().includes(digest);
 }
 
-function novaAuth(req, res, next) {
-  req.unlimited = isVip(req);
-  const secret = process.env.SUPABASE_JWT_SECRET || '';
-  const devUser = process.env.NOVA_DEV_USER || '';
-  const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+// Profils déjà vérifiés (compte:profil → espace), gardés 5 minutes.
+const LEARNER_TTL_MS = 5 * 60 * 1000;
+const learnerCache = new Map();
 
-  // 1) Compte Supabase.
-  if (token) {
-    if (!secret) {
-      return res.status(500).json({ error: 'Serveur mal configuré : SUPABASE_JWT_SECRET manquant.' });
-    }
-    try {
-      const payload = jwt.verify(token, secret);
-      const sub = payload && payload.sub;
-      if (!sub) return res.status(401).json({ error: 'Token sans identifiant (sub).' });
-      req.userId = String(sub);
-      req.quotaId = req.userId;
-      return next();
-    } catch {
-      return res.status(401).json({ error: 'Token invalide ou expiré.' });
-    }
+async function findLearnerMode(accountId, learnerId) {
+  const key = `${accountId}:${learnerId}`;
+  const hit = learnerCache.get(key);
+  if (hit != null && Date.now() - hit.at < LEARNER_TTL_MS) return hit.mode;
+  const rows = await sb.request(
+    `learners?id=eq.${encodeURIComponent(learnerId)}&account_id=eq.${encodeURIComponent(accountId)}&select=mode&limit=1`,
+  );
+  const mode = Array.isArray(rows) && rows[0] != null ? String(rows[0].mode) : null;
+  if (mode != null) {
+    learnerCache.set(key, { mode, at: Date.now() });
+    if (learnerCache.size > 20000) learnerCache.clear();
   }
-
-  // 2) Appareil (sans compte).
-  const device = String(req.headers['x-novigo-device'] || '').trim();
-  if (device) {
-    if (!UUID_V4.test(device)) {
-      return res.status(400).json({ error: 'Identifiant d’appareil invalide.' });
-    }
-    const profile = String(req.headers['x-novigo-profile'] || '').trim();
-    req.quotaId = `device:${device.toLowerCase()}`;
-    req.userId = PROFILE_ID.test(profile) ? `${req.quotaId}:${profile}` : req.quotaId;
-    return next();
-  }
-
-  // 3) Anciennes versions de l'app : identité par IP hachée (jamais partagée).
-  if (devUser) {
-    req.userId = `legacy:${hash(`${devUser}:${req.ip || ''}`)}`;
-    req.quotaId = req.userId;
-    return next();
-  }
-
-  return res.status(401).json({ error: 'Non authentifié. Mets l’application à jour.' });
+  return mode;
 }
 
-module.exports = { novaAuth };
+async function novaAuth(req, res, next) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  if (!token) {
+    return res.status(401).json({ error: 'Connecte-toi pour parler à Nova.', code: 'auth_required' });
+  }
+  if (!sb.configured()) {
+    return res.status(503).json({ error: 'Nova est momentanément indisponible.', code: 'not_configured' });
+  }
+
+  let account;
+  try {
+    account = await verifySupabaseToken(token);
+  } catch {
+    return res.status(401).json({ error: 'Ta session a expiré. Reconnecte-toi pour parler à Nova.', code: 'auth_invalid' });
+  }
+
+  const learnerId = String(req.headers['x-novigo-profile'] || '').trim().toLowerCase();
+  if (!UUID.test(learnerId)) {
+    return res.status(400).json({ error: 'Choisis un profil pour parler à Nova.', code: 'profile_required' });
+  }
+  let mode;
+  try {
+    mode = await findLearnerMode(account.accountId, learnerId);
+  } catch (e) {
+    console.error('[nova] vérification du profil impossible :', String(e.message).slice(0, 160));
+    return res.status(503).json({ error: 'Nova est momentanément indisponible.', retry: true });
+  }
+  if (mode == null) {
+    return res.status(403).json({ error: 'Ce profil n’appartient pas à ce compte.', code: 'profile_forbidden' });
+  }
+  if (mode === 'kids') {
+    return res.status(403).json({ error: 'Nova n’est pas disponible dans l’espace Enfant.', code: 'kids' });
+  }
+
+  req.accountId = account.accountId;
+  req.learnerId = learnerId;
+  req.learnerMode = mode;
+  req.plan = isVip(req) ? 'tester' : 'free';
+  return next();
+}
+
+module.exports = { novaAuth, isVip };

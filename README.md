@@ -40,74 +40,83 @@ et la logique restent **côté serveur uniquement**.
 
 ## Config
 
-Dans `.env` :
+Dans `.env` (ou les variables d'environnement de Render) :
 
 - `MISTRAL_API_KEY` — clé API Mistral (https://console.mistral.ai).
-- `SUPABASE_JWT_SECRET` — **secret JWT** du projet Supabase (Dashboard → Settings →
-  API → JWT Secret). Sert à vérifier le token de l'utilisateur ; le `userId` de
-  confiance est le `sub` du token — **le `userId` du body n'est jamais utilisé**.
-- `NOVA_DAILY_LIMIT` — messages `/api/nova` par appareil (ou compte) et par jour
-  (défaut : 20).
-- `NOVA_GLOBAL_DAILY_LIMIT` — plafond de messages par jour pour **tous les gratuits**
-  (défaut : 3000) : garde-fou de coût.
-- `NOVA_UNLIMITED_DAILY_LIMIT` / `NOVA_UNLIMITED_GLOBAL_DAILY_LIMIT` — accès illimité
-  (code testeur, puis abonnés) : aucun compteur affiché, seulement une **sécurité
-  invisible** par personne (défaut 500/jour) et un budget global séparé (défaut 5000).
+- `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` — **obligatoires pour Nova** : mémoire
+  et quotas sont dans Supabase (et la clé publique du projet sert à vérifier les
+  sessions). La clé serveur ne quitte jamais ce serveur.
+- `SUPABASE_JWT_SECRET` — **facultatif** : seulement pour un projet dont les sessions
+  sont signées avec l'ancien secret partagé (HS256). Novigo utilise des clés
+  asymétriques (ES256), vérifiées avec la clé publique du projet (JWKS).
+- `NOVA_FREE_MONTHLY_LIMIT` / `NOVA_FREE_DAILY_LIMIT` — formule gratuite : messages
+  par mois (défaut 20) et au plus par jour (défaut 5), **par compte**.
+- `NOVA_PREMIUM_MONTHLY_LIMIT` / `NOVA_PREMIUM_DAILY_LIMIT` — formule premium, prête
+  mais **attribuée à personne** tant que les abonnements n'existent pas.
+- `NOVA_FREE_MEMORY_DAILY_LIMIT` (défaut 8) — mises à jour de la mémoire par jour
+  (appel IA en coulisse, ne consomme pas les messages de la personne).
+- `NOVA_GLOBAL_DAILY_LIMIT` / `NOVA_GLOBAL_MEMORY_DAILY_LIMIT` — plafonds par jour pour
+  **tous les comptes** (défaut 3000) : garde-fou de coût.
+- `NOVA_UNLIMITED_DAILY_LIMIT` — code testeur : aucun compteur affiché, seulement une
+  **sécurité invisible** par compte (défaut 500/jour).
 - `NOVA_VIP_CODE_HASHES` — empreintes SHA-256 (séparées par des virgules) des codes
   testeur acceptés dans `X-Novigo-Vip` (majuscules/chiffres seulement, tirets retirés).
   Par défaut : l'empreinte du code testeur de la fondatrice (voir `middleware/auth.js`).
+- `NOVA_IP_PER_MINUTE` (défaut 60) / `NOVA_ACCOUNT_PER_MINUTE` (défaut 12) — limiteur de
+  rafales en mémoire.
 - `MISTRAL_API_URL` — **tests locaux uniquement** (faux serveur Mistral).
 - `TTS_DAILY_CHAR_LIMIT` / `TTS_IP_DAILY_LIMIT` — plafonds de la voix IA (`/tts`) :
   caractères par jour pour tout le service (défaut 20 000) et requêtes par IP et
   par jour (défaut 300).
-- `NOVA_DEV_USER` — **transition** : pour les anciennes versions de l'app qui
-  n'envoient pas d'identifiant d'appareil, identité dérivée de l'IP (hachée),
-  jamais partagée. **À vider quand toutes les apps sont à jour.**
 
 ## Routes
 
-Identité (voir `middleware/auth.js`), dans cet ordre :
+Identité (voir `middleware/auth.js`) — **toujours un compte** :
 
-1. `Authorization: Bearer <token d'accès Supabase>` (compte) ;
-2. sans compte : `X-Novigo-Device: <UUID v4 aléatoire de l'appareil>` +
-   `X-Novigo-Profile: <id du profil actif>` → quota **par appareil**, mémoire de
-   Nova **par appareil et par profil** ;
-3. anciennes versions de l'app : repli `NOVA_DEV_USER` (IP hachée).
+1. `Authorization: Bearer <jeton de session Supabase>` : signature, émetteur, audience
+   et expiration vérifiés ; le compte de confiance est le `sub` du jeton. Sans jeton
+   valide : **401**.
+2. `X-Novigo-Profile: <id du profil actif>` : le profil doit appartenir à ce compte
+   (vérifié en base) ; sinon **403**. Pas de Nova dans l'espace Enfant.
+3. `X-Novigo-Vip` (facultatif) : code testeur.
 
-- **`GET /api/nova/quota`** → `{ unlimited, limit, remaining }` (ne consomme rien ;
-  pour un accès illimité, la sécurité invisible n'est pas révélée).
-- **`POST /api/nova`** → `{ messages, lessonId?, lessonContext? }`
+Aucun identifiant envoyé par l'app (appareil, compte, profil d'un autre) n'est cru.
+
+- **`GET /api/nova/quota`** → `{ plan, unlimited, limit, remaining, daily, monthly,
+  reason, message }` (ne consomme rien ; pour un code testeur, la sécurité invisible
+  n'est pas révélée).
+- **`POST /api/nova`** → `{ messages, lessonContext? }`
   Réponse du coach en **streaming SSE** (chunks compatibles OpenAI/Mistral).
-  `lessonContext` = petit texte (titre + objectif de la leçon) fourni par l'app ;
-  injecté dans `{{CONTEXTE_LECON}}`. Erreur **429** si le quota du jour est atteint ;
-  **503 `{ retry: true }`** si Mistral échoue (le message est alors rendu).
+  `lessonContext` = contexte fourni par l'app (fiche « Mon projet », parcours…), borné
+  à 6000 caractères, injecté dans `{{CONTEXTE_LECON}}`. **429** si un plafond est
+  atteint (`reason` : `daily`, `monthly` ou `global`) ; **503 `{ retry: true }`** si
+  Mistral échoue (le message est alors rendu).
 - **`POST /api/nova/memoire`** → `{ messages }`
-  Applique le 2ᵉ prompt pour mettre à jour la fiche, **valide le JSON avec Zod**
-  (`fiche/ficheSchema.js`, limites `LIMITES_FICHE` incluses). Si la validation
-  échoue → **log + fiche précédente conservée** (`{ ok:false, kept:true }`).
+  Applique le 2ᵉ prompt pour mettre à jour la fiche **du profil**, **valide le JSON
+  avec Zod** (`fiche/ficheSchema.js`). Si la validation échoue → **log + fiche
+  précédente conservée** (`{ ok:false, kept:true }`).
 
-## Persistance : Supabase (sinon fichiers locaux)
+## Persistance : Supabase uniquement
 
-La mémoire de Nova (fiches) et les compteurs de quota vont dans **Supabase** dès
-que les tables existent : lancer **une fois** `supabase/nova.sql` dans Supabase →
-SQL Editor (tables `nova_fiches`, `nova_usage`, fonction `nova_consume`, RLS sans
-règle = accès serveur uniquement). Le serveur le détecte tout seul (au plus
-10 min), sans redéploiement. Il utilise `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`.
+Migration **`novigo/supabase/migrations/0005_nova_compte.sql`** (dépôt de l'app), à
+appliquer une fois dans Supabase → SQL Editor :
 
-Tant que ce n'est pas fait, repli sur `data/fiches/*.json` et `data/usage.json`
-(disque local, ignoré par git) : **perdus à chaque redémarrage** sur un hébergement
-à disque éphémère (Render free).
+- `nova_memory` — la mémoire de Nova, **une fiche par profil**, supprimée avec le
+  profil ou le compte ;
+- `nova_usage_account` — compteurs **par compte**, par jour (heure de Paris), le mois
+  étant la somme des jours ; `nova_usage_global` — garde-fou de coût ;
+- fonctions `nova_consume` (atomique), `nova_refund`, `nova_usage_status`,
+  `nova_memory_load`, `nova_memory_save` (qui revérifie que le profil est au compte).
 
-## Sécurité (état actuel)
+Accès **serveur uniquement** : RLS sans règle + aucun droit pour les clés de l'app.
+Plus aucun repli sur le disque : si Supabase est injoignable, Nova répond **503**
+au lieu de compter ou retenir n'importe où.
 
-- Routes Nova : token Supabase vérifié, ou identifiant d'appareil (quota par appareil
-  + plafond global de coût). Aucun identifiant n'est jamais partagé entre utilisateurs.
-- Le `userId` provient **toujours** du token vérifié, jamais du client.
+## Sécurité
+
+- Le compte provient **toujours** du jeton vérifié, jamais du client.
+- Un compte ne peut viser que ses propres profils (vérifié en base, deux fois).
+- Quotas par compte, calculés par la base : changer d'appareil ou de navigateur ne
+  remet rien à zéro ; redémarrer le serveur non plus.
 - Aucune donnée sensible n'est écrite dans la fiche (santé, opinions, coordonnées
-  de tiers, bancaire) — règle portée par le prompt et le schéma.
-- Le repli `NOVA_DEV_USER` est **transitoire** : à vider quand toutes les apps envoient
-  `X-Novigo-Device`.
-- Un identifiant d'appareil peut être fabriqué à volonté : le plafond global
-  (`NOVA_GLOBAL_DAILY_LIMIT`) borne le coût. Pour aller plus loin : comptes (anonymes)
-  Supabase + vérification d'intégrité de l'app (App Attest / Play Integrity).
-
+  de tiers, bancaire), et rien d'inventé — règles portées par le prompt et le schéma.

@@ -9,7 +9,8 @@
   },
   "scripts": {
     "start": "node server.js",
-    "seed:annuaire": "node scripts/seed-annuaire.js"
+    "seed:annuaire": "node scripts/seed-annuaire.js",
+    "test": "node --test"
   },
   "dependencies": {
     "cors": "^2.8.5",

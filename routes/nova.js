@@ -1,61 +1,42 @@
 // routes/nova.js
 // Coach Nova (programme Adultes).
 //   POST /api/nova          -> réponse du coach en streaming (SSE)
-//   POST /api/nova/memoire  -> met à jour la fiche à partir de la conversation
-//   GET  /api/nova/quota    -> messages restants aujourd'hui (affichage dans l'app)
-// Identité : middleware novaAuth (compte Supabase, ou appareil + profil — jamais le body).
+//   POST /api/nova/memoire  -> met à jour la mémoire (fiche) du profil à partir de la conversation
+//   GET  /api/nova/quota    -> messages restants aujourd'hui et ce mois-ci (affichage dans l'app)
+// Identité : middleware novaAuth (compte Supabase vérifié + profil du compte — jamais le body).
+// Mémoire : par PROFIL ; quotas : par COMPTE ; les deux dans Supabase (migration 0005).
 //
-// Plafonds quotidiens :
-//  - gratuit    : NOVA_DAILY_LIMIT par appareil/compte (affiché dans l'app) ;
-//  - illimité   : (code testeur, puis abonnés) pas de compteur affiché, seulement une
-//                 sécurité INVISIBLE NOVA_UNLIMITED_DAILY_LIMIT contre les robots ;
-//  - global     : NOVA_GLOBAL_DAILY_LIMIT (gratuits) et NOVA_UNLIMITED_GLOBAL_DAILY_LIMIT
-//                 (illimités) = garde-fous de coût, même si quelqu'un fabrique des
-//                 identifiants à la chaîne. Budgets séparés : les gratuits ne peuvent
-//                 pas épuiser celui des abonnés.
+// Quotas (nova/plans.js, réglables) : formule « free » = 20 messages par mois et
+// 5 par jour au plus ; « tester » = sécurité invisible ; « premium » prêt, non
+// attribué. Plus un garde-fou de coût global par jour, et un limiteur de rafales.
 // Si l'IA échoue (surcharge, panne), le message est RENDU et l'app peut réessayer.
 
 const express = require('express');
 const { Readable } = require('stream');
 
 const { novaAuth } = require('../middleware/auth');
+const { rateLimit } = require('../middleware/rateLimit');
 const { loadFiche, saveFiche } = require('../fiche/ficheStore');
-const { consume, refund, peek } = require('../fiche/usageStore');
+const usage = require('../fiche/usageStore');
 const { parseFiche } = require('../fiche/ficheSchema');
+const { planLimits, limitMessage, quotaView } = require('../nova/plans');
 const { buildSystemPrompt, buildMemoryPrompt } = require('../nova/prompt');
 const mistral = require('../nova/mistral');
 
 const router = express.Router();
 
-const DAILY_LIMIT = Number(process.env.NOVA_DAILY_LIMIT) || 20;
-const GLOBAL_DAILY_LIMIT = Number(process.env.NOVA_GLOBAL_DAILY_LIMIT) || 3000;
-const UNLIMITED_DAILY_LIMIT = Number(process.env.NOVA_UNLIMITED_DAILY_LIMIT) || 500;
-const UNLIMITED_GLOBAL_DAILY_LIMIT = Number(process.env.NOVA_UNLIMITED_GLOBAL_DAILY_LIMIT) || 5000;
-
 const BUSY = 'Nova est très sollicitée en ce moment. Réessaie dans un instant.';
+const UNAVAILABLE = 'Nova est momentanément indisponible. Réessaie dans un instant.';
+/** Contexte envoyé par l'app (fiche « Mon projet », parcours…) : borné. */
+const MAX_CONTEXT = 6000;
 
-/** Compteurs à consommer pour un message (`chat`) ou une mise à jour de mémoire (`mem`). */
-function quotaChecks(req, kind) {
-  const p = kind === 'mem' ? 'mem:' : '';
-  if (req.unlimited) {
-    return [
-      { key: `${p}unl:${req.quotaId}`, limit: UNLIMITED_DAILY_LIMIT },
-      { key: `global-${p}unl`, limit: UNLIMITED_GLOBAL_DAILY_LIMIT },
-    ];
-  }
-  return [
-    { key: `${p}${req.quotaId}`, limit: DAILY_LIMIT },
-    { key: kind === 'mem' ? 'global-mem' : 'global', limit: GLOBAL_DAILY_LIMIT },
-  ];
-}
-
-/** Message clair selon le plafond atteint. */
-function limitMessage(req, quota) {
-  if (req.unlimited || (quota.blockedKey != null && quota.blockedKey.startsWith('global'))) {
-    return 'Nova est très demandée aujourd’hui. Reviens un peu plus tard, elle sera là !';
-  }
-  return `Tu as utilisé tes ${DAILY_LIMIT} messages avec Nova pour aujourd’hui. Reviens demain !`;
-}
+// Rafales : par adresse (avant toute vérification), puis par compte et par route.
+router.use('/api/nova', rateLimit({ windowMs: 60_000, max: Number(process.env.NOVA_IP_PER_MINUTE) || 60, key: (req) => req.ip || 'inconnue' }));
+const perAccount = rateLimit({
+  windowMs: 60_000,
+  max: Number(process.env.NOVA_ACCOUNT_PER_MINUTE) || 12,
+  key: (req) => (req.accountId ? `${req.accountId}:${req.method}:${req.path}` : null),
+});
 
 // Ne garde que des messages user/assistant, bornés en nombre et en longueur.
 function sanitizeMessages(input, maxCount, maxLen) {
@@ -83,24 +64,29 @@ function extractJson(text) {
   return JSON.parse(t);
 }
 
+function logStorage(where, e) {
+  console.error(`[nova] ${where} : Supabase indisponible :`, String(e && e.message).slice(0, 160));
+}
+
 // -------------------------------------------------------------------------
-// GET /api/nova/quota  -> { unlimited, limit, remaining }
-//   Illimité : on ne révèle pas la sécurité invisible.
+// GET /api/nova/quota  -> { plan, unlimited, limit, remaining, daily, monthly, reason, message }
+//   Accès testeur : on ne révèle pas la sécurité invisible.
 // -------------------------------------------------------------------------
-router.get('/api/nova/quota', novaAuth, async (req, res) => {
-  if (req.unlimited) return res.json({ unlimited: true, limit: null, remaining: null });
-  const used = (await peek([req.quotaId]))[req.quotaId] || 0;
-  return res.json({ unlimited: false, limit: DAILY_LIMIT, remaining: Math.max(0, DAILY_LIMIT - used) });
+router.get('/api/nova/quota', novaAuth, perAccount, async (req, res) => {
+  try {
+    return res.json(quotaView(req.plan, await usage.status(req.accountId)));
+  } catch (e) {
+    logStorage('quota', e);
+    return res.status(503).json({ error: UNAVAILABLE, retry: true });
+  }
 });
 
 // -------------------------------------------------------------------------
-// POST /api/nova  — { messages, lessonId?, lessonContext? }  -> SSE
+// POST /api/nova  — { messages, lessonContext? }  -> SSE
 // -------------------------------------------------------------------------
-router.post('/api/nova', novaAuth, async (req, res) => {
-  const userId = req.userId; // de confiance (token vérifié ou appareil + profil)
-
+router.post('/api/nova', novaAuth, perAccount, async (req, res) => {
   if (!mistral.isConfigured()) {
-    return res.status(503).json({ error: 'Nova est momentanément indisponible.' });
+    return res.status(503).json({ error: UNAVAILABLE });
   }
 
   const messages = sanitizeMessages(req.body && req.body.messages, 20, 4000);
@@ -108,15 +94,28 @@ router.post('/api/nova', novaAuth, async (req, res) => {
     return res.status(400).json({ error: 'Champ "messages" requis (liste user/assistant non vide).' });
   }
 
-  const checks = quotaChecks(req, 'chat');
-  const quota = await consume(checks);
-  if (!quota.allowed) {
-    return res.status(429).json({ error: limitMessage(req, quota), limit: req.unlimited ? undefined : DAILY_LIMIT });
+  let quota;
+  try {
+    quota = await usage.consume(req.accountId, 'chat', planLimits(req.plan, 'chat'));
+  } catch (e) {
+    logStorage('quota', e);
+    return res.status(503).json({ error: UNAVAILABLE, retry: true });
   }
-  const giveBack = () => refund(checks.map((c) => c.key));
+  if (!quota.allowed) {
+    return res.status(429).json({ error: limitMessage(req.plan, quota.reason, quota.day), reason: quota.reason, quota: quotaView(req.plan, quota) });
+  }
+  const giveBack = () => usage.refund(req.accountId, 'chat', quota.day).catch((e) => logStorage('remboursement', e));
 
-  const fiche = await loadFiche(userId);
-  const system = buildSystemPrompt({ fiche, lessonContext: req.body && req.body.lessonContext });
+  let fiche;
+  try {
+    fiche = await loadFiche(req.accountId, req.learnerId);
+  } catch (e) {
+    logStorage('mémoire', e);
+    await giveBack();
+    return res.status(503).json({ error: UNAVAILABLE, retry: true });
+  }
+  const rawContext = req.body && typeof req.body.lessonContext === 'string' ? req.body.lessonContext : '';
+  const system = buildSystemPrompt({ fiche, lessonContext: rawContext.slice(0, MAX_CONTEXT) });
   const payload = [{ role: 'system', content: system }, ...messages];
 
   // Abandonner l'appel Mistral si le CLIENT se déconnecte. On écoute la réponse
@@ -154,12 +153,10 @@ router.post('/api/nova', novaAuth, async (req, res) => {
 });
 
 // -------------------------------------------------------------------------
-// POST /api/nova/memoire  — { messages }  -> met à jour la fiche
+// POST /api/nova/memoire  — { messages }  -> met à jour la fiche du PROFIL
 //   Validation Zod : si elle échoue, on LOG et on garde la fiche précédente.
 // -------------------------------------------------------------------------
-router.post('/api/nova/memoire', novaAuth, async (req, res) => {
-  const userId = req.userId;
-
+router.post('/api/nova/memoire', novaAuth, perAccount, async (req, res) => {
   if (!mistral.isConfigured()) {
     return res.status(503).json({ ok: false, kept: true, reason: 'config' });
   }
@@ -169,14 +166,27 @@ router.post('/api/nova/memoire', novaAuth, async (req, res) => {
     return res.status(400).json({ error: 'Champ "messages" requis pour mettre à jour la fiche.' });
   }
 
-  // La mise à jour de la mémoire appelle aussi l'IA : plafonds à part.
-  const checks = quotaChecks(req, 'mem');
-  const quota = await consume(checks);
+  // La mise à jour de la mémoire appelle aussi l'IA : plafonds à part (pas les messages de la personne).
+  let quota;
+  try {
+    quota = await usage.consume(req.accountId, 'memory', planLimits(req.plan, 'memory'));
+  } catch (e) {
+    logStorage('quota mémoire', e);
+    return res.status(503).json({ ok: false, kept: true, reason: 'storage' });
+  }
   if (!quota.allowed) {
     return res.status(429).json({ ok: false, kept: true, reason: 'quota' });
   }
+  const giveBack = () => usage.refund(req.accountId, 'memory', quota.day).catch((e) => logStorage('remboursement', e));
 
-  const previous = await loadFiche(userId);
+  let previous;
+  try {
+    previous = await loadFiche(req.accountId, req.learnerId);
+  } catch (e) {
+    logStorage('mémoire', e);
+    await giveBack();
+    return res.status(503).json({ ok: false, kept: true, reason: 'storage' });
+  }
   const prompt = buildMemoryPrompt({ fiche: previous, conversation });
 
   let text;
@@ -184,7 +194,7 @@ router.post('/api/nova/memoire', novaAuth, async (req, res) => {
     text = await mistral.chat({ messages: [{ role: 'user', content: prompt }] });
   } catch (e) {
     console.error('[nova/memoire] appel Mistral échoué :', String(e).slice(0, 200));
-    await refund(checks.map((c) => c.key));
+    await giveBack();
     return res.status(503).json({ ok: false, kept: true, reason: 'llm' });
   }
 
@@ -202,9 +212,14 @@ router.post('/api/nova/memoire', novaAuth, async (req, res) => {
     return res.json({ ok: false, kept: true, reason: 'schema' });
   }
 
-  const fiche = { ...validation.data, misAJourLe: new Date().toISOString() };
-  const saved = await saveFiche(userId, fiche); // force utilisateurId = userId de confiance
-  return res.json({ ok: true, fiche: saved });
+  try {
+    const fiche = { ...validation.data, misAJourLe: new Date().toISOString() };
+    const saved = await saveFiche(req.accountId, req.learnerId, fiche);
+    return res.json({ ok: true, fiche: saved });
+  } catch (e) {
+    logStorage('enregistrement mémoire', e);
+    return res.status(503).json({ ok: false, kept: true, reason: 'storage' });
+  }
 });
 
 module.exports = router;

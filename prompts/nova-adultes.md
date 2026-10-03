@@ -198,6 +198,8 @@ et sans balises de code.
 
 Règles :
 
+- N'invente rien : n'écris que ce que la personne a dit ou confirmé dans la
+  conversation. Une suggestion de Nova n'est pas un fait sur la personne.
 - N'ajoute une entrée dans `preuves` que si une action a réellement été
   accomplie dans le monde réel. Une intention n'est pas une preuve.
 - Une affirmation non vérifiée va dans `hypothesesATester`, jamais dans

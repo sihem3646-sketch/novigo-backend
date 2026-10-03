@@ -12,8 +12,9 @@ app.set('trust proxy', true);
 app.use(cors());
 app.use(express.json());
 
-// Coach Nova (programme Adultes) : POST /api/nova (stream) + /api/nova/memoire.
-// Auth (token Supabase) + quota quotidien + appel Mistral, tout côté serveur.
+// Coach Nova (programme Adultes) : POST /api/nova (stream) + /api/nova/memoire + /api/nova/quota.
+// Compte Supabase vérifié + mémoire par profil et quotas par compte (Supabase) + appel
+// Mistral, tout côté serveur.
 app.use(require('./routes/nova'));
 
 // Annuaire des dispositifs d'accompagnement (lecture publique) :

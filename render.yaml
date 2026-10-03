@@ -21,14 +21,17 @@ services:
         value: EXAVITQu4vr4xnSDxMaL
       - key: ELEVENLABS_MODEL
         value: eleven_multilingual_v2
-      # Anciennes versions de l'app (sans identifiant d'appareil) : identité par IP
-      # hachée. À vider quand toutes les apps sont à jour.
-      - key: NOVA_DEV_USER
-        value: dev-1
-      # Messages Nova par jour : gratuit (par appareil, affiché dans l'app) ; plafond
-      # global des gratuits ; sécurité INVISIBLE des illimités (code testeur, abonnés).
-      - key: NOVA_DAILY_LIMIT
+      # Nova : mémoire et quotas dans Supabase (secrets à saisir dans Render).
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      # Messages Nova par COMPTE : formule gratuite (par mois, et au plus par jour) ;
+      # plafond global de coût ; sécurité INVISIBLE des codes testeur.
+      - key: NOVA_FREE_MONTHLY_LIMIT
         value: "20"
+      - key: NOVA_FREE_DAILY_LIMIT
+        value: "5"
       - key: NOVA_GLOBAL_DAILY_LIMIT
         value: "3000"
       - key: NOVA_UNLIMITED_DAILY_LIMIT

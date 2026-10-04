@@ -139,3 +139,32 @@ au lieu de compter ou retenir n'importe où.
 | `GET /api/account/export-nova` | Mémoire de Nova (par profil) et compteurs du compte du jeton, pour l'export « Mes données ». |
 
 Le compte est **toujours** celui du jeton : un identifiant envoyé dans la requête est ignoré.
+
+# Annuaire des dispositifs (Ressources)
+
+Fiches saisies à la main et vérifiées (jamais de scraping), dans Supabase
+(table `dispositifs`, migrations 0002 et **0007** de l'app). Filtres appliqués par
+la base (`annuaire_recherche`, `annuaire_filtres`).
+
+| Route | Rôle |
+|---|---|
+| `GET /api/annuaire/recherche` | Une page de résultats. `portee` = `tous` (défaut), `national`, `region` (la région choisie **+** le national), `local` ; `region` = code INSEE ; `type`, `public`, `etape`, `q` ; `limit` (1–50, 20 par défaut), `offset`. Valeur inconnue → 400. |
+| `GET /api/annuaire/filtres` | Les 18 régions, types, publics, étapes, et les compteurs (par portée, région, type…). |
+| `GET /api/annuaire/:id` | Une fiche. |
+| `GET /api/annuaire` | Liste complète, ancien format (pour l'app déjà en ligne). |
+
+Erreurs : message neutre, jamais le texte de Supabase.
+
+## Ajouter ou corriger des fiches
+1. Modifier `data/dispositifs.seed.json` (format validé par `annuaire/referentiel.js`) :
+   `slug` (nom normalisé), `portee`, `region_code` (obligatoire hors national),
+   `departements`, `etapes`, `public_cible`, `source_url` et `verifie_le` (source
+   officielle et date de vérification), etc. Ne rien inventer : laisser vide ce
+   qui n'est pas vérifié.
+2. `npm run seed:annuaire -- --verifier` : validation seule, aucun envoi.
+3. `npm run seed:annuaire` : mise à jour **fiche par fiche** (sur `slug`) ; la table
+   n'est jamais vidée. `--desactiver-absents` masque (sans supprimer) les fiches
+   retirées du fichier.
+
+**Ordre de mise en ligne :** appliquer la migration 0007 dans Supabase **avant**
+de déployer ce backend (il utilise ses fonctions et colonnes).

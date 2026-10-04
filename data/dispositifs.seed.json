@@ -1,236 +1,705 @@
 [
   {
+    "slug": "pepite-france",
     "nom": "Pépite France",
     "type": "accompagnement",
-    "organisme": "Réseau PEPITE (Ministère de l'Enseignement supérieur)",
-    "description": "Réseau national qui accompagne les étudiants et jeunes diplômés dans leur projet entrepreneurial. Donne accès au statut national d'étudiant-entrepreneur.",
-    "public_cible": ["etudiant", "jeune"],
+    "organisme": "Pépite (ministère de l'Enseignement supérieur)",
+    "description": "Les Pépite accompagnent les étudiants et jeunes diplômés porteurs de projet et délivrent le statut national d'étudiant-entrepreneur : deux tuteurs, accès à des espaces de travail, aménagements d'études, possibilité de remplacer un stage par son projet. Statut valable une année universitaire, renouvelable.",
+    "public_cible": [
+      "etudiant",
+      "jeune"
+    ],
+    "portee": "national",
+    "region_code": null,
     "region": "national",
+    "departements": [],
     "ville": null,
+    "etapes": [
+      "idee",
+      "test"
+    ],
     "url": "https://www.pepite-france.fr",
+    "source_url": "https://entreprendre.service-public.gouv.fr/vosdroits/F32313",
+    "verifie_le": "2026-10-04",
     "date_limite": null,
-    "gratuit": true,
+    "gratuit": null,
     "actif": true
   },
   {
+    "slug": "bge",
     "nom": "BGE",
     "type": "accompagnement",
-    "organisme": "BGE (Boutiques de Gestion)",
-    "description": "Réseau associatif d'accompagnement à la création et au développement d'entreprise. Conseil, formation et suivi des porteurs de projet.",
-    "public_cible": ["tous", "demandeur_emploi"],
+    "organisme": "BGE",
+    "description": "Réseau associatif qui accompagne les entrepreneurs de l'idée au développement : affiner l'idée, structurer et tester le projet, le financer, développer l'activité. Ouvert à tous ceux qui entreprennent, y compris les personnes en situation de handicap et les femmes entrepreneures.",
+    "public_cible": [
+      "tous",
+      "handicap",
+      "femme"
+    ],
+    "portee": "national",
+    "region_code": null,
     "region": "national",
+    "departements": [],
     "ville": null,
+    "etapes": [
+      "idee",
+      "test",
+      "creation",
+      "croissance"
+    ],
     "url": "https://www.bge.asso.fr",
+    "source_url": "https://www.bge.asso.fr",
+    "verifie_le": "2026-10-04",
     "date_limite": null,
-    "gratuit": true,
+    "gratuit": null,
     "actif": true
   },
   {
+    "slug": "reseau-entreprendre",
     "nom": "Réseau Entreprendre",
     "type": "accompagnement",
     "organisme": "Réseau Entreprendre",
-    "description": "Accompagnement par des chefs d'entreprise expérimentés et prêt d'honneur pour les créateurs et repreneurs.",
-    "public_cible": ["createur"],
+    "description": "Réseau de chefs d'entreprise qui accompagne des créateurs et repreneurs à potentiel de création d'emplois : suivi individuel par un dirigeant expérimenté, accompagnement collectif et, sous certaines conditions, prêt d'honneur. Sélection par un comité (statut de « lauréat »).",
+    "public_cible": [
+      "createur"
+    ],
+    "portee": "national",
+    "region_code": null,
     "region": "national",
+    "departements": [],
     "ville": null,
+    "etapes": [
+      "creation",
+      "lancement"
+    ],
     "url": "https://www.reseau-entreprendre.org",
+    "source_url": "https://entreprendre.service-public.gouv.fr/vosdroits/F35939",
+    "verifie_le": "2026-10-04",
     "date_limite": null,
-    "gratuit": true,
+    "gratuit": null,
     "actif": true
   },
   {
+    "slug": "adie",
     "nom": "Adie",
     "type": "aide_financiere",
     "organisme": "Adie (Association pour le droit à l'initiative économique)",
-    "description": "Microcrédit et accompagnement pour créer son activité quand on n'a pas accès au crédit bancaire. S'adresse notamment aux demandeurs d'emploi et bénéficiaires de minima sociaux.",
-    "public_cible": ["demandeur_emploi", "tous"],
+    "description": "Association qui finance la création d'entreprise par le microcrédit et accompagne les entrepreneurs tout au long du projet (conseillers, ateliers et webconférences, outil de business plan). Distribue aussi le Prêt d'honneur Solidaire.",
+    "public_cible": [
+      "jeune",
+      "demandeur_emploi",
+      "salarie"
+    ],
+    "portee": "national",
+    "region_code": null,
     "region": "national",
+    "departements": [],
     "ville": null,
+    "etapes": [
+      "creation"
+    ],
     "url": "https://www.adie.org",
+    "source_url": "https://www.adie.org",
+    "verifie_le": "2026-10-04",
     "date_limite": null,
-    "gratuit": true,
+    "gratuit": null,
     "actif": true
   },
   {
+    "slug": "initiative-france",
     "nom": "Initiative France",
     "type": "aide_financiere",
     "organisme": "Initiative France",
-    "description": "Réseau qui octroie des prêts d'honneur sans intérêt ni garantie aux créateurs et repreneurs. Accompagnement de proximité via des plateformes locales.",
-    "public_cible": ["createur"],
+    "description": "Réseau d'associations locales qui accorde des prêts d'honneur à taux zéro, sans garantie demandée, aux créateurs, repreneurs et entreprises en développement, avec un accompagnement et un parrainage par des bénévoles. Programmes spécifiques pour les femmes, les moins de 30 ans, les demandeurs d'emploi et les quartiers prioritaires.",
+    "public_cible": [
+      "createur",
+      "femme",
+      "jeune",
+      "demandeur_emploi",
+      "quartier_prioritaire"
+    ],
+    "portee": "national",
+    "region_code": null,
     "region": "national",
+    "departements": [],
     "ville": null,
+    "etapes": [
+      "creation",
+      "croissance"
+    ],
     "url": "https://www.initiative-france.fr",
+    "source_url": "https://www.initiative-france.fr",
+    "verifie_le": "2026-10-04",
     "date_limite": null,
-    "gratuit": true,
+    "gratuit": null,
     "actif": true
   },
   {
+    "slug": "france-active",
     "nom": "France Active",
     "type": "aide_financiere",
     "organisme": "France Active",
-    "description": "Financement et accompagnement des entrepreneurs engagés et de l'économie sociale et solidaire. Garanties de prêts et conseil.",
-    "public_cible": ["createur", "tous"],
+    "description": "Réseau qui accompagne et finance les entrepreneurs engagés, notamment ceux qui développent des projets à impact social ou territorial : garanties pour accéder au crédit bancaire, financements solidaires et conseil stratégique.",
+    "public_cible": [
+      "createur"
+    ],
+    "portee": "national",
+    "region_code": null,
     "region": "national",
+    "departements": [],
     "ville": null,
-    "url": "https://www.france-active.org",
+    "etapes": [],
+    "url": "https://www.franceactive.org",
+    "source_url": "https://www.franceactive.org",
+    "verifie_le": "2026-10-04",
     "date_limite": null,
-    "gratuit": true,
+    "gratuit": null,
     "actif": true
   },
   {
+    "slug": "bpifrance-creation",
     "nom": "Bpifrance Création",
     "type": "accompagnement",
     "organisme": "Bpifrance",
-    "description": "Ressources, informations et outils gratuits pour préparer et lancer son projet de création d'entreprise.",
-    "public_cible": ["tous"],
+    "description": "Mon Pass Créa : parcours en ligne gratuit et personnalisé pour créer, reprendre ou céder une entreprise (méthodes, outils de business plan et de pitch, autodiagnostic, mise en relation avec des professionnels de l'accompagnement). Création d'un compte nécessaire.",
+    "public_cible": [
+      "tous"
+    ],
+    "portee": "national",
+    "region_code": null,
     "region": "national",
+    "departements": [],
     "ville": null,
-    "url": "https://bpifrance-creation.fr",
+    "etapes": [],
+    "url": "https://bpifrance-creation.fr/je-cree-mon-pass-crea",
+    "source_url": "https://entreprendre.service-public.gouv.fr/vosdroits/R76574",
+    "verifie_le": "2026-10-04",
     "date_limite": null,
     "gratuit": true,
     "actif": true
   },
   {
+    "slug": "moovjee",
     "nom": "Moovjee",
     "type": "accompagnement",
     "organisme": "Moovjee",
     "description": "Programme de mentorat pour les jeunes qui créent leur entreprise pendant ou à la sortie de leurs études.",
-    "public_cible": ["jeune", "etudiant"],
+    "public_cible": [
+      "jeune",
+      "etudiant"
+    ],
+    "portee": "national",
+    "region_code": null,
     "region": "national",
+    "departements": [],
     "ville": null,
+    "etapes": [],
     "url": "https://www.moovjee.fr",
+    "source_url": null,
+    "verifie_le": null,
     "date_limite": null,
-    "gratuit": true,
+    "gratuit": null,
     "actif": true
   },
   {
+    "slug": "reseau-des-missions-locales",
     "nom": "Réseau des Missions Locales",
     "type": "accompagnement",
     "organisme": "Union Nationale des Missions Locales",
     "description": "Accompagnement des jeunes de 16 à 25 ans vers l'emploi, la formation et parfois la création d'activité, partout en France.",
-    "public_cible": ["jeune", "demandeur_emploi"],
+    "public_cible": [
+      "jeune",
+      "demandeur_emploi"
+    ],
+    "portee": "national",
+    "region_code": null,
     "region": "national",
+    "departements": [],
     "ville": null,
+    "etapes": [],
     "url": "https://www.unml.info",
+    "source_url": null,
+    "verifie_le": null,
     "date_limite": null,
-    "gratuit": true,
+    "gratuit": null,
     "actif": true
   },
   {
+    "slug": "france-travail-creation-d-entreprise",
     "nom": "France Travail — création d'entreprise",
     "type": "accompagnement",
     "organisme": "France Travail",
     "description": "Accompagnement à la création ou reprise d'entreprise pour les demandeurs d'emploi, avec des aides possibles au démarrage.",
-    "public_cible": ["demandeur_emploi"],
+    "public_cible": [
+      "demandeur_emploi"
+    ],
+    "portee": "national",
+    "region_code": null,
     "region": "national",
+    "departements": [],
     "ville": null,
+    "etapes": [],
     "url": "https://www.francetravail.fr",
+    "source_url": null,
+    "verifie_le": null,
     "date_limite": null,
     "gratuit": true,
-    "actif": true
+    "actif": false
   },
   {
+    "slug": "les-entrepreneuriales",
     "nom": "Les Entrepreneuriales",
     "type": "formation",
     "organisme": "Les Entrepreneuriales",
     "description": "Parcours pédagogique où des étudiants montent un projet de création d'entreprise en équipe, jusqu'à une soutenance finale.",
-    "public_cible": ["etudiant"],
+    "public_cible": [
+      "etudiant"
+    ],
+    "portee": "national",
+    "region_code": null,
     "region": "national",
+    "departements": [],
     "ville": null,
-    "url": "",
+    "etapes": [],
+    "url": null,
+    "source_url": null,
+    "verifie_le": null,
     "date_limite": null,
-    "gratuit": true,
+    "gratuit": null,
     "actif": true
   },
   {
+    "slug": "le-village-by-ca",
     "nom": "Le Village by CA",
     "type": "incubateur",
     "organisme": "Le Village by CA (Crédit Agricole)",
     "description": "Réseau d'accélérateurs de startups présent en Auvergne-Rhône-Alpes (notamment Lyon, Grenoble, Clermont-Ferrand).",
-    "public_cible": ["createur"],
+    "public_cible": [
+      "createur"
+    ],
+    "portee": "regional",
+    "region_code": "84",
     "region": "Auvergne-Rhône-Alpes",
+    "departements": [],
     "ville": null,
+    "etapes": [],
     "url": "https://levillagebyca.com",
+    "source_url": null,
+    "verifie_le": null,
     "date_limite": null,
-    "gratuit": true,
+    "gratuit": null,
     "actif": true
   },
   {
+    "slug": "ronalpia",
     "nom": "Ronalpia",
     "type": "incubateur",
     "organisme": "Ronalpia",
     "description": "Incubateur d'entrepreneurs sociaux en Auvergne-Rhône-Alpes. Détection, incubation et accélération de projets à impact.",
-    "public_cible": ["createur", "tous"],
+    "public_cible": [
+      "createur",
+      "tous"
+    ],
+    "portee": "regional",
+    "region_code": "84",
     "region": "Auvergne-Rhône-Alpes",
+    "departements": [],
     "ville": "Lyon",
+    "etapes": [],
     "url": "https://www.ronalpia.fr",
+    "source_url": null,
+    "verifie_le": null,
     "date_limite": null,
-    "gratuit": true,
+    "gratuit": null,
     "actif": true
   },
   {
+    "slug": "le-bivouac",
     "nom": "Le Bivouac",
     "type": "incubateur",
     "organisme": "Le Bivouac",
     "description": "Accélérateur de startups situé à Clermont-Ferrand.",
-    "public_cible": ["createur"],
+    "public_cible": [
+      "createur"
+    ],
+    "portee": "regional",
+    "region_code": "84",
     "region": "Auvergne-Rhône-Alpes",
+    "departements": [],
     "ville": "Clermont-Ferrand",
-    "url": "",
+    "etapes": [],
+    "url": null,
+    "source_url": null,
+    "verifie_le": null,
     "date_limite": null,
-    "gratuit": true,
+    "gratuit": null,
     "actif": true
   },
   {
+    "slug": "pepite-beelys",
     "nom": "PEPITE Beelys",
     "type": "accompagnement",
     "organisme": "PEPITE Beelys (Université de Lyon)",
     "description": "Pôle étudiant pour l'entrepreneuriat de Lyon–Saint-Étienne. Accompagne les étudiants-entrepreneurs du territoire.",
-    "public_cible": ["etudiant", "jeune"],
+    "public_cible": [
+      "etudiant",
+      "jeune"
+    ],
+    "portee": "regional",
+    "region_code": "84",
     "region": "Auvergne-Rhône-Alpes",
+    "departements": [],
     "ville": "Lyon",
-    "url": "",
+    "etapes": [],
+    "url": null,
+    "source_url": null,
+    "verifie_le": null,
     "date_limite": null,
-    "gratuit": true,
+    "gratuit": null,
     "actif": true
   },
   {
+    "slug": "pepite-ozer",
     "nom": "PEPITE oZer",
     "type": "accompagnement",
     "organisme": "PEPITE oZer (Université Grenoble Alpes)",
     "description": "Pôle étudiant pour l'entrepreneuriat de Grenoble. Accompagne les étudiants et jeunes diplômés dans leurs projets.",
-    "public_cible": ["etudiant", "jeune"],
+    "public_cible": [
+      "etudiant",
+      "jeune"
+    ],
+    "portee": "regional",
+    "region_code": "84",
     "region": "Auvergne-Rhône-Alpes",
+    "departements": [],
     "ville": "Grenoble",
-    "url": "",
+    "etapes": [],
+    "url": null,
+    "source_url": null,
+    "verifie_le": null,
     "date_limite": null,
-    "gratuit": true,
+    "gratuit": null,
     "actif": true
   },
   {
+    "slug": "auvergne-rhone-alpes-entreprises",
     "nom": "Auvergne-Rhône-Alpes Entreprises",
     "type": "accompagnement",
     "organisme": "Auvergne-Rhône-Alpes Entreprises",
     "description": "Agence régionale qui accompagne les entreprises et les porteurs de projet du territoire.",
-    "public_cible": ["createur", "tous"],
+    "public_cible": [
+      "createur",
+      "tous"
+    ],
+    "portee": "regional",
+    "region_code": "84",
     "region": "Auvergne-Rhône-Alpes",
+    "departements": [],
     "ville": null,
-    "url": "",
+    "etapes": [],
+    "url": null,
+    "source_url": null,
+    "verifie_le": null,
     "date_limite": null,
-    "gratuit": true,
+    "gratuit": null,
     "actif": true
   },
   {
+    "slug": "les-premieres-auvergne-rhone-alpes",
     "nom": "Les Premières Auvergne-Rhône-Alpes",
     "type": "incubateur",
     "organisme": "Les Premières AURA",
     "description": "Incubateur qui accompagne les femmes et les équipes mixtes dans la création d'entreprise en Auvergne-Rhône-Alpes.",
-    "public_cible": ["femmes", "createur"],
+    "public_cible": [
+      "femme",
+      "createur"
+    ],
+    "portee": "regional",
+    "region_code": "84",
     "region": "Auvergne-Rhône-Alpes",
+    "departements": [],
     "ville": null,
-    "url": "",
+    "etapes": [],
+    "url": null,
+    "source_url": null,
+    "verifie_le": null,
     "date_limite": null,
-    "gratuit": true,
+    "gratuit": null,
+    "actif": true
+  },
+  {
+    "slug": "aide-a-la-creation-ou-a-la-reprise-d-une-entreprise-acre",
+    "nom": "Aide à la création ou à la reprise d'une entreprise (Acre)",
+    "type": "aide_financiere",
+    "organisme": "Urssaf (dispositif de l’État)",
+    "description": "Exonération partielle et temporaire des cotisations sociales en début d'activité, pour certains créateurs et repreneurs (demandeurs d'emploi, bénéficiaires du RSA ou de l'ASS, jeunes, création en quartier prioritaire…). Non automatique : la demande est à faire à l'Urssaf dans les 60 jours suivant la création.",
+    "public_cible": [
+      "demandeur_emploi",
+      "jeune",
+      "quartier_prioritaire"
+    ],
+    "portee": "national",
+    "region_code": null,
+    "region": "national",
+    "departements": [],
+    "ville": null,
+    "etapes": [
+      "creation"
+    ],
+    "url": "https://entreprendre.service-public.gouv.fr/vosdroits/F11677",
+    "source_url": "https://entreprendre.service-public.gouv.fr/vosdroits/F11677",
+    "verifie_le": "2026-10-04",
+    "date_limite": null,
+    "gratuit": null,
+    "actif": true
+  },
+  {
+    "slug": "aide-a-la-reprise-ou-a-la-creation-d-entreprise-arce",
+    "nom": "Aide à la reprise ou à la création d'entreprise (Arce)",
+    "type": "aide_financiere",
+    "organisme": "France Travail",
+    "description": "Versement en capital d'une partie des droits à l'allocation chômage (ARE) restants, en deux fois, pour un demandeur d'emploi indemnisé qui crée ou reprend une entreprise et bénéficie de l'Acre. Non cumulable avec le maintien mensuel de l'ARE.",
+    "public_cible": [
+      "demandeur_emploi"
+    ],
+    "portee": "national",
+    "region_code": null,
+    "region": "national",
+    "departements": [],
+    "ville": null,
+    "etapes": [
+      "creation"
+    ],
+    "url": "https://entreprendre.service-public.gouv.fr/vosdroits/F15252",
+    "source_url": "https://entreprendre.service-public.gouv.fr/vosdroits/F15252",
+    "verifie_le": "2026-10-04",
+    "date_limite": null,
+    "gratuit": null,
+    "actif": true
+  },
+  {
+    "slug": "maintien-de-l-allocation-chomage-are-pendant-la-creation",
+    "nom": "Maintien de l'allocation chômage (ARE) pendant la création",
+    "type": "aide_financiere",
+    "organisme": "France Travail",
+    "description": "Un demandeur d'emploi indemnisé qui crée son entreprise peut cumuler chaque mois une partie de son ARE avec les revenus de son activité, dans une limite fixée par la réglementation. Alternative à l'Arce (les deux ne se cumulent pas).",
+    "public_cible": [
+      "demandeur_emploi"
+    ],
+    "portee": "national",
+    "region_code": null,
+    "region": "national",
+    "departements": [],
+    "ville": null,
+    "etapes": [
+      "creation",
+      "lancement"
+    ],
+    "url": "https://entreprendre.service-public.gouv.fr/vosdroits/F36613",
+    "source_url": "https://entreprendre.service-public.gouv.fr/vosdroits/F36613",
+    "verifie_le": "2026-10-04",
+    "date_limite": null,
+    "gratuit": null,
+    "actif": true
+  },
+  {
+    "slug": "activ-crea-france-travail",
+    "nom": "Activ'Créa (France Travail)",
+    "type": "accompagnement",
+    "organisme": "France Travail",
+    "description": "Service d'accompagnement personnalisé pour les demandeurs d'emploi qui se demandent si la création ou la reprise d'entreprise est faite pour eux : motivations, compétences, idée, étapes et plan d'action. Durée de 3 mois maximum, réalisable à distance. Accès via son conseiller ou son espace personnel.",
+    "public_cible": [
+      "demandeur_emploi"
+    ],
+    "portee": "national",
+    "region_code": null,
+    "region": "national",
+    "departements": [],
+    "ville": null,
+    "etapes": [
+      "idee"
+    ],
+    "url": "https://www.francetravail.fr/candidat/je-creereprends-une-entreprise/les-ressources-utiles/activcrea.html",
+    "source_url": "https://www.francetravail.fr/candidat/je-creereprends-une-entreprise/les-ressources-utiles/activcrea.html",
+    "verifie_le": "2026-10-04",
+    "date_limite": null,
+    "gratuit": null,
+    "actif": true
+  },
+  {
+    "slug": "ateliers-conseils-creation-d-entreprise-france-travail",
+    "nom": "Ateliers-conseils création d'entreprise (France Travail)",
+    "type": "accompagnement",
+    "organisme": "France Travail",
+    "description": "Ateliers collectifs pour les demandeurs d'emploi : « M'imaginer créateur d'entreprise » (motivations, formes de création, idées, aides) et « Mon projet de création d'entreprise et moi » (où en est mon projet, sécuriser le projet, acteurs locaux). Inscription par son conseiller France Travail.",
+    "public_cible": [
+      "demandeur_emploi"
+    ],
+    "portee": "national",
+    "region_code": null,
+    "region": "national",
+    "departements": [],
+    "ville": null,
+    "etapes": [
+      "idee",
+      "test",
+      "creation"
+    ],
+    "url": "https://www.francetravail.fr/candidat/je-creereprends-une-entreprise/les-ressources-utiles.html",
+    "source_url": "https://www.francetravail.fr/candidat/je-creereprends-une-entreprise/les-ressources-utiles.html",
+    "verifie_le": "2026-10-04",
+    "date_limite": null,
+    "gratuit": null,
+    "actif": true
+  },
+  {
+    "slug": "contrat-d-appui-au-projet-d-entreprise-cape",
+    "nom": "Contrat d'appui au projet d'entreprise (Cape)",
+    "type": "accompagnement",
+    "organisme": "Couveuses et structures d’accompagnement (dispositif légal)",
+    "description": "Contrat qui permet de tester la viabilité d'un projet de création ou de reprise avec l'appui continu d'une structure accompagnatrice, tout en bénéficiant d'une protection sociale. Ouvert notamment aux demandeurs d'emploi, bénéficiaires de minima sociaux et salariés à temps partiel ; pas aux salariés à temps plein. Durée d'un an, renouvelable deux fois.",
+    "public_cible": [
+      "demandeur_emploi",
+      "salarie"
+    ],
+    "portee": "national",
+    "region_code": null,
+    "region": "national",
+    "departements": [],
+    "ville": null,
+    "etapes": [
+      "test"
+    ],
+    "url": "https://entreprendre.service-public.gouv.fr/vosdroits/F11299",
+    "source_url": "https://entreprendre.service-public.gouv.fr/vosdroits/F11299",
+    "verifie_le": "2026-10-04",
+    "date_limite": null,
+    "gratuit": null,
+    "actif": true
+  },
+  {
+    "slug": "aide-agefiph-a-la-creation-ou-reprise-d-entreprise",
+    "nom": "Aide Agefiph à la création ou reprise d'entreprise",
+    "type": "aide_financiere",
+    "organisme": "Agefiph",
+    "description": "Aide forfaitaire de 3 000 € pour les personnes en situation de handicap qui créent ou reprennent une entreprise, sous conditions (projet validé par un prestataire expert habilité, apport personnel, activité principale et durable). Demande en ligne sur la plateforme Agefiph.",
+    "public_cible": [
+      "handicap"
+    ],
+    "portee": "national",
+    "region_code": null,
+    "region": "national",
+    "departements": [],
+    "ville": null,
+    "etapes": [
+      "creation"
+    ],
+    "url": "https://www.agefiph.fr/aides-financieres/aide-la-creation-ou-la-reprise-dune-entreprise",
+    "source_url": "https://www.agefiph.fr/aides-financieres/aide-la-creation-ou-la-reprise-dune-entreprise",
+    "verifie_le": "2026-10-04",
+    "date_limite": null,
+    "gratuit": null,
+    "actif": true
+  },
+  {
+    "slug": "chambres-de-metiers-et-de-l-artisanat-cma-creation-d-entreprise",
+    "nom": "Chambres de métiers et de l'artisanat (CMA) — création d'entreprise",
+    "type": "accompagnement",
+    "organisme": "Chambres de métiers et de l'artisanat",
+    "description": "Parcours d'accompagnement des créateurs et repreneurs d'entreprise artisanale : réunion d'information, structuration du projet, accompagnement personnalisé et formalités, puis suivi. Les formations du « Parcours Créateur » sont payantes (financements possibles, éligibles au CPF). Contact : 3006.",
+    "public_cible": [
+      "createur"
+    ],
+    "portee": "national",
+    "region_code": null,
+    "region": "national",
+    "departements": [],
+    "ville": null,
+    "etapes": [
+      "idee",
+      "creation",
+      "croissance"
+    ],
+    "url": "https://www.artisanat.fr/nous-connaitre/vous-accompagner/creation-entreprise",
+    "source_url": "https://www.artisanat.fr/nous-connaitre/vous-accompagner/creation-entreprise",
+    "verifie_le": "2026-10-04",
+    "date_limite": null,
+    "gratuit": false,
+    "actif": true
+  },
+  {
+    "slug": "chambres-de-commerce-et-d-industrie-cci-creation-d-entreprise",
+    "nom": "Chambres de commerce et d'industrie (CCI) — création d'entreprise",
+    "type": "accompagnement",
+    "organisme": "Chambres de commerce et d'industrie",
+    "description": "Les CCI accompagnent les porteurs de projets de création ou de reprise d'une entreprise commerciale, industrielle ou de services (faisabilité, business plan, financement, statut).",
+    "public_cible": [
+      "createur"
+    ],
+    "portee": "national",
+    "region_code": null,
+    "region": "national",
+    "departements": [],
+    "ville": null,
+    "etapes": [
+      "idee",
+      "test",
+      "creation"
+    ],
+    "url": "https://www.cci.fr",
+    "source_url": "https://entreprendre.service-public.gouv.fr/vosdroits/F35939",
+    "verifie_le": "2026-10-04",
+    "date_limite": null,
+    "gratuit": null,
+    "actif": true
+  },
+  {
+    "slug": "pret-d-honneur-solidaire",
+    "nom": "Prêt d'honneur Solidaire",
+    "type": "aide_financiere",
+    "organisme": "Bpifrance, distribué par Initiative France, France Active et Adie",
+    "description": "Prêt d'honneur à taux zéro, sans garantie, de 1 000 à 8 000 €, pour des créateurs ou repreneurs (entreprise de moins de 3 ans) en situation de fragilité : demandeurs d'emploi, bénéficiaires de minima sociaux, jeunes, habitants des quartiers prioritaires… Un prêt bancaire complémentaire est requis.",
+    "public_cible": [
+      "demandeur_emploi",
+      "jeune",
+      "quartier_prioritaire"
+    ],
+    "portee": "national",
+    "region_code": null,
+    "region": "national",
+    "departements": [],
+    "ville": null,
+    "etapes": [
+      "creation",
+      "lancement"
+    ],
+    "url": "https://bpifrance-creation.fr/pret-dhonneur-creation-reprise-et-pret-dhonneur-solidaire",
+    "source_url": "https://bpifrance-creation.fr/pret-dhonneur-creation-reprise-et-pret-dhonneur-solidaire",
+    "verifie_le": "2026-10-04",
+    "date_limite": null,
+    "gratuit": null,
+    "actif": true
+  },
+  {
+    "slug": "french-tech-tremplin",
+    "nom": "French Tech Tremplin",
+    "type": "incubateur",
+    "organisme": "Mission French Tech et Bpifrance",
+    "description": "Programme pour les entrepreneurs issus de milieux sous-représentés dans l'écosystème des startups (quartiers prioritaires, bénéficiaires de minima sociaux, zones rurales…) : incubation dans une structure partenaire et soutien financier. Fonctionne par promotions ; vérifier l'ouverture des candidatures.",
+    "public_cible": [
+      "quartier_prioritaire"
+    ],
+    "portee": "national",
+    "region_code": null,
+    "region": "national",
+    "departements": [],
+    "ville": null,
+    "etapes": [],
+    "url": "https://lafrenchtech.gouv.fr/en/programme/french-tech-tremplin/",
+    "source_url": "https://lafrenchtech.gouv.fr/en/programme/french-tech-tremplin/",
+    "verifie_le": "2026-10-04",
+    "date_limite": null,
+    "gratuit": null,
     "actif": true
   }
 ]

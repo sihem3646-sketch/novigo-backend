@@ -1,122 +1,177 @@
 // routes/annuaire.js
-// Annuaire des dispositifs d'accompagnement (lecture publique).
-//  GET /api/annuaire        -> liste filtrée/triée
-//  GET /api/annuaire/:id    -> détail d'un dispositif
-//
-// Deux sources possibles :
-//  1) Supabase (si SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY sont définis) : source
-//     de vérité à terme, données éditables en base.
-//  2) SINON : repli sur le seed JSON versionné (data/dispositifs.seed.json) →
-//     l'annuaire fonctionne immédiatement, sans base. Le seed reste la source
-//     de vérité des données saisies à la main.
+// Annuaire des dispositifs d'accompagnement (lecture publique, données saisies à
+// la main et vérifiées — jamais de scraping).
+//   GET /api/annuaire/filtres     -> référentiel (régions, types, publics, étapes) + compteurs
+//   GET /api/annuaire/recherche   -> une page de résultats filtrés côté serveur
+//        ?portee=tous|national|region|local &region=<code INSEE> &type= &public= &etape= &q=
+//        &limit=1..50 &offset=
+//        « region » = les fiches de la région choisie + les fiches nationales.
+//   GET /api/annuaire/:id         -> une fiche
+//   GET /api/annuaire             -> liste complète (ancien format, pour l'app déjà en ligne)
+// Les filtres sont appliqués par la base (fonctions annuaire_recherche /
+// annuaire_filtres, migration 0007). Erreurs : jamais le texte brut de Supabase.
 
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
+
+const sb = require('../fiche/supabase');
+const { logError, errorMeta } = require('../lib/log');
+const { REGIONS, REGION_CODES, TYPES, FILTRES_PORTEE, ETAPES, PUBLICS, PORTEES, regionLabel } = require('../annuaire/referentiel');
 
 const router = express.Router();
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const TYPES = ['concours', 'incubateur', 'aide_financiere', 'accompagnement', 'formation'];
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const COLUMNS = 'id,slug,nom,type,organisme,description,public_cible,portee,region_code,departements,ville,etapes,url,source_url,verifie_le,date_limite,gratuit';
+const UNAVAILABLE = { error: 'Annuaire momentanément indisponible. Réessaie dans un instant.', code: 'annuaire_unavailable' };
 
-const isConfigured = () => Boolean(SUPABASE_URL && SERVICE_KEY);
-const sbHeaders = () => ({ apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` });
-const restBase = () => `${SUPABASE_URL.replace(/\/+$/, '')}/rest/v1/dispositifs`;
-
-// --- Repli local (seed JSON) ---------------------------------------------
-
-function slug(s) {
-  return String(s || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
+/** Une fiche telle que l'app la reçoit (le nom de la région est ajouté). */
+function toFiche(row) {
+  return {
+    id: row.id,
+    slug: row.slug,
+    nom: row.nom,
+    type: row.type,
+    organisme: row.organisme ?? null,
+    description: row.description ?? null,
+    public_cible: Array.isArray(row.public_cible) ? row.public_cible : [],
+    portee: row.portee,
+    region_code: row.region_code ?? null,
+    region: regionLabel(row.region_code ?? null),
+    departements: Array.isArray(row.departements) ? row.departements : [],
+    ville: row.ville ?? null,
+    etapes: Array.isArray(row.etapes) ? row.etapes : [],
+    url: row.url ?? null,
+    source_url: row.source_url ?? null,
+    verifie_le: row.verifie_le ?? null,
+    date_limite: row.date_limite ?? null,
+    // true = gratuit, false = payant, null = non précisé par la source.
+    gratuit: typeof row.gratuit === 'boolean' ? row.gratuit : null,
+    actif: true,
+  };
 }
 
-let SEED = null;
-function loadSeed() {
-  if (SEED) return SEED;
-  try {
-    const raw = fs.readFileSync(path.join(__dirname, '..', 'data', 'dispositifs.seed.json'), 'utf8');
-    const arr = JSON.parse(raw);
-    // On dérive un id STABLE (slug du nom) pour la navigation liste -> détail.
-    SEED = arr.map((d, i) => ({ actif: true, updated_at: null, ...d, id: slug(d.nom) || `dispositif-${i}` }));
-  } catch {
-    SEED = [];
+const pick = (value, allowed) => (typeof value === 'string' && allowed.includes(value) ? value : null);
+const toInt = (value, def, min, max) => {
+  const n = Number.parseInt(String(value ?? ''), 10);
+  return Number.isFinite(n) ? Math.min(Math.max(n, min), max) : def;
+};
+
+/** Filtres de la requête, validés ; { error } si une valeur est inconnue. */
+function readFilters(query) {
+  const raw = { portee: query.portee, region: query.region, type: query.type, public: query.public, etape: query.etape };
+  const f = {
+    portee: pick(raw.portee, FILTRES_PORTEE) ?? 'tous',
+    region: pick(raw.region, REGION_CODES),
+    type: pick(raw.type, TYPES),
+    public: pick(raw.public, PUBLICS),
+    etape: pick(raw.etape, ETAPES),
+    q: typeof query.q === 'string' ? query.q.trim().slice(0, 80) : '',
+    limit: toInt(query.limit, 20, 1, 50),
+    offset: toInt(query.offset, 0, 0, 10000),
+  };
+  const allowed = { portee: FILTRES_PORTEE, region: REGION_CODES, type: TYPES, public: PUBLICS, etape: ETAPES };
+  for (const [key, list] of Object.entries(allowed)) {
+    if (raw[key] != null && raw[key] !== '' && pick(raw[key], list) == null) return { error: `Filtre inconnu : ${key}.` };
   }
-  return SEED;
+  if (f.portee === 'region' && f.region == null) return { error: 'Choisis une région.' };
+  return { filters: f };
 }
 
-function localFilterSort(list, { type, region, pub, q }) {
-  const today = new Date().toISOString().slice(0, 10);
-  let out = list.filter((d) => d.actif !== false);
-  out = out.filter((d) => !d.date_limite || d.date_limite >= today);
-  if (type && TYPES.includes(type)) out = out.filter((d) => d.type === type);
-  if (region) out = out.filter((d) => d.region === region);
-  if (pub) out = out.filter((d) => Array.isArray(d.public_cible) && d.public_cible.includes(pub));
-  if (q) {
-    const needle = String(q).toLowerCase();
-    out = out.filter((d) => `${d.nom} ${d.organisme || ''} ${d.description || ''}`.toLowerCase().includes(needle));
-  }
-  // Tri : échéances proches d'abord, permanents (null) ensuite.
-  out.sort((a, b) => {
-    if (!a.date_limite && !b.date_limite) return 0;
-    if (!a.date_limite) return 1;
-    if (!b.date_limite) return -1;
-    return a.date_limite.localeCompare(b.date_limite);
+async function search(f) {
+  const rows = await sb.rpc('annuaire_recherche', {
+    p_portee: f.portee,
+    p_region: f.region,
+    p_type: f.type,
+    p_public: f.public,
+    p_etape: f.etape,
+    p_q: f.q || null,
+    p_limit: f.limit,
+    p_offset: f.offset,
   });
-  return out;
+  const list = Array.isArray(rows) ? rows : [];
+  const total = list.length > 0 ? Number(list[0].total) : f.offset === 0 ? 0 : null;
+  return { items: list.map(toFiche), total };
 }
 
-// --- Routes ---------------------------------------------------------------
+function notConfigured(res) {
+  return res.status(503).json({ ...UNAVAILABLE, code: 'not_configured' });
+}
 
-// GET /api/annuaire?type=&region=&public=&q=
-router.get('/api/annuaire', async (req, res) => {
-  const { type, region, public: pub, q } = req.query;
-
-  // Repli seed JSON si Supabase non configuré.
-  if (!isConfigured()) {
-    return res.json(localFilterSort(loadSeed(), { type, region, pub, q }));
-  }
-
+// -------------------------------------------------------------------------
+// GET /api/annuaire/filtres
+// -------------------------------------------------------------------------
+router.get('/api/annuaire/filtres', async (_req, res) => {
+  if (!sb.configured()) return notConfigured(res);
   try {
-    const today = new Date().toISOString().slice(0, 10);
-    const params = ['select=*', 'actif=eq.true', `or=(date_limite.is.null,date_limite.gte.${today})`];
-    if (type && TYPES.includes(String(type))) params.push(`type=eq.${encodeURIComponent(String(type))}`);
-    if (region) params.push(`region=eq.${encodeURIComponent(String(region))}`);
-    if (pub) params.push(`public_cible=cs.${encodeURIComponent('{' + String(pub) + '}')}`);
-    if (q) params.push(`search_tsv=plfts(french).${encodeURIComponent(String(q))}`);
-    params.push('order=date_limite.asc.nullslast');
-
-    const r = await fetch(`${restBase()}?${params.join('&')}`, { headers: sbHeaders() });
-    if (!r.ok) return res.status(502).json({ error: 'Erreur Supabase', status: r.status, detail: (await r.text()).slice(0, 300) });
-    return res.json(await r.json());
+    const compteurs = await sb.rpc('annuaire_filtres', {});
+    res.set('Cache-Control', 'public, max-age=300');
+    return res.json({ regions: REGIONS, portees: PORTEES, types: TYPES, publics: PUBLICS, etapes: ETAPES, compteurs: compteurs ?? {} });
   } catch (e) {
-    return res.status(500).json({ error: 'Erreur serveur annuaire', detail: String(e).slice(0, 200) });
+    logError('annuaire', 'filtres_failed', errorMeta(e));
+    return res.status(503).json(UNAVAILABLE);
   }
 });
 
-// GET /api/annuaire/:id
-router.get('/api/annuaire/:id', async (req, res) => {
-  // Repli seed JSON si Supabase non configuré.
-  if (!isConfigured()) {
-    const item = loadSeed().find((d) => d.id === req.params.id);
-    if (!item) return res.status(404).json({ error: 'Dispositif introuvable.' });
-    return res.json(item);
-  }
-
+// -------------------------------------------------------------------------
+// GET /api/annuaire/recherche
+// -------------------------------------------------------------------------
+router.get('/api/annuaire/recherche', async (req, res) => {
+  if (!sb.configured()) return notConfigured(res);
+  const { filters, error } = readFilters(req.query);
+  if (error) return res.status(400).json({ error, code: 'filtre_invalide' });
   try {
-    const id = encodeURIComponent(req.params.id);
-    const r = await fetch(`${restBase()}?id=eq.${id}&select=*`, {
-      headers: { ...sbHeaders(), Accept: 'application/vnd.pgrst.object+json' },
-    });
-    if (r.status === 406 || r.status === 404) return res.status(404).json({ error: 'Dispositif introuvable.' });
-    if (!r.ok) return res.status(502).json({ error: 'Erreur Supabase', status: r.status, detail: (await r.text()).slice(0, 300) });
-    return res.json(await r.json());
+    const { items, total } = await search(filters);
+    return res.json({ items, total, limit: filters.limit, offset: filters.offset });
   } catch (e) {
-    return res.status(500).json({ error: 'Erreur serveur annuaire', detail: String(e).slice(0, 200) });
+    logError('annuaire', 'recherche_failed', errorMeta(e));
+    return res.status(503).json(UNAVAILABLE);
+  }
+});
+
+// -------------------------------------------------------------------------
+// GET /api/annuaire — ancien format (tableau complet) : l'app déjà en ligne
+// filtre la région elle-même avec le champ « region » (nom de la région).
+// -------------------------------------------------------------------------
+router.get('/api/annuaire', async (req, res) => {
+  if (!sb.configured()) return notConfigured(res);
+  const base = {
+    portee: 'tous',
+    region: null,
+    type: pick(req.query.type, TYPES),
+    public: pick(req.query.public, PUBLICS),
+    etape: null,
+    q: typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 80) : '',
+    limit: 50,
+    offset: 0,
+  };
+  try {
+    const all = [];
+    for (let page = 0; page < 40; page++) {
+      const { items, total } = await search({ ...base, offset: page * 50 });
+      all.push(...items);
+      if (items.length < 50 || (total != null && all.length >= total)) break;
+    }
+    return res.json(all);
+  } catch (e) {
+    logError('annuaire', 'liste_failed', errorMeta(e));
+    return res.status(503).json(UNAVAILABLE);
+  }
+});
+
+// -------------------------------------------------------------------------
+// GET /api/annuaire/:id
+// -------------------------------------------------------------------------
+router.get('/api/annuaire/:id', async (req, res) => {
+  if (!sb.configured()) return notConfigured(res);
+  const id = String(req.params.id || '');
+  if (!UUID.test(id)) return res.status(404).json({ error: 'Dispositif introuvable.', code: 'not_found' });
+  try {
+    const rows = await sb.request(`dispositifs?id=eq.${encodeURIComponent(id)}&actif=eq.true&select=${COLUMNS}&limit=1`);
+    const row = Array.isArray(rows) ? rows[0] : null;
+    if (row == null) return res.status(404).json({ error: 'Dispositif introuvable.', code: 'not_found' });
+    return res.json(toFiche(row));
+  } catch (e) {
+    logError('annuaire', 'fiche_failed', errorMeta(e));
+    return res.status(503).json(UNAVAILABLE);
   }
 });
 

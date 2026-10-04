@@ -120,3 +120,22 @@ au lieu de compter ou retenir n'importe où.
   remet rien à zéro ; redémarrer le serveur non plus.
 - Aucune donnée sensible n'est écrite dans la fiche (santé, opinions, coordonnées
   de tiers, bancaire), et rien d'inventé — règles portées par le prompt et le schéma.
+- **CORS** : liste stricte d'origines (`lib/cors.js`) — par défaut `https://novigo.expo.app`,
+  `https://mynovigo.fr`, `https://www.mynovigo.fr`. Une origine inconnue reçoit 403.
+  Une adresse d'aperçu précise s'ajoute avec `ALLOWED_ORIGINS` (liste complète, sans
+  joker). Les applis mobiles natives n'envoient pas d'Origin : elles ne sont pas concernées.
+- **Voix IA (`/tts`)** : coupée par défaut (`TTS_ENABLED=1` pour la réactiver). La voix
+  demandée doit être l'une des voix configurées (`ELEVENLABS_VOICE_ID`,
+  `ELEVENLABS_VOICE_IDS`) : impossible de détourner l'adresse appelée avec la clé.
+- **Journaux sans contenu** (`lib/log.js`) : jamais de message, de fiche, de réponse de
+  l'IA ni de corps d'erreur brut ; seulement l'événement, le statut et un code.
+- **Bêta adultes** : Nova refuse les profils non adultes (`BETA_ADULTS_ONLY`, actif par défaut).
+
+## Droits sur les données du compte
+
+| Route | Rôle |
+|---|---|
+| `POST /api/account/delete` `{ confirm: "SUPPRIMER" }` | Supprime définitivement le compte du jeton (API d'administration Supabase) ; les données liées partent par les clés étrangères `ON DELETE CASCADE`. Exige une connexion **par mot de passe** de moins de 5 min (`ACCOUNT_REAUTH_MAX_AGE_S`). Vérifie ensuite qu'il ne reste rien. |
+| `GET /api/account/export-nova` | Mémoire de Nova (par profil) et compteurs du compte du jeton, pour l'export « Mes données ». |
+
+Le compte est **toujours** celui du jeton : un identifiant envoyé dans la requête est ignoré.

@@ -22,6 +22,7 @@ const { parseFiche } = require('../fiche/ficheSchema');
 const { planLimits, limitMessage, quotaView } = require('../nova/plans');
 const { buildSystemPrompt, buildMemoryPrompt } = require('../nova/prompt');
 const mistral = require('../nova/mistral');
+const { logError, errorMeta } = require('../lib/log');
 
 const router = express.Router();
 
@@ -64,8 +65,9 @@ function extractJson(text) {
   return JSON.parse(t);
 }
 
+// Journaux sans contenu : où, statut, code (voir lib/log.js).
 function logStorage(where, e) {
-  console.error(`[nova] ${where} : Supabase indisponible :`, String(e && e.message).slice(0, 160));
+  logError('nova', `storage_${where}`, errorMeta(e));
 }
 
 // -------------------------------------------------------------------------
@@ -104,13 +106,13 @@ router.post('/api/nova', novaAuth, perAccount, async (req, res) => {
   if (!quota.allowed) {
     return res.status(429).json({ error: limitMessage(req.plan, quota.reason, quota.day), reason: quota.reason, quota: quotaView(req.plan, quota) });
   }
-  const giveBack = () => usage.refund(req.accountId, 'chat', quota.day).catch((e) => logStorage('remboursement', e));
+  const giveBack = () => usage.refund(req.accountId, 'chat', quota.day).catch((e) => logStorage('refund', e));
 
   let fiche;
   try {
     fiche = await loadFiche(req.accountId, req.learnerId);
   } catch (e) {
-    logStorage('mémoire', e);
+    logStorage('memory_load', e);
     await giveBack();
     return res.status(503).json({ error: UNAVAILABLE, retry: true });
   }
@@ -129,8 +131,8 @@ router.post('/api/nova', novaAuth, perAccount, async (req, res) => {
   try {
     const upstream = await mistral.chatStream({ messages: payload, signal: controller.signal });
     if (!upstream.ok || upstream.body == null) {
-      const detail = await upstream.text().catch(() => '');
-      console.error(`[nova] Mistral ${upstream.status} :`, detail.slice(0, 300));
+      // Le corps de l'erreur de l'IA n'est ni lu ni journalisé (il peut citer la demande).
+      logError('nova', 'llm_error', { status: upstream.status });
       await giveBack();
       return res.status(503).json({ error: BUSY, retry: true });
     }
@@ -146,7 +148,7 @@ router.post('/api/nova', novaAuth, perAccount, async (req, res) => {
       .pipe(res);
   } catch (e) {
     if (controller.signal.aborted) return res.end();
-    console.error('[nova] erreur appel Mistral :', String(e).slice(0, 200));
+    logError('nova', 'llm_failed', errorMeta(e));
     await giveBack();
     return res.status(503).json({ error: BUSY, retry: true });
   }
@@ -171,19 +173,19 @@ router.post('/api/nova/memoire', novaAuth, perAccount, async (req, res) => {
   try {
     quota = await usage.consume(req.accountId, 'memory', planLimits(req.plan, 'memory'));
   } catch (e) {
-    logStorage('quota mémoire', e);
+    logStorage('quota_memory', e);
     return res.status(503).json({ ok: false, kept: true, reason: 'storage' });
   }
   if (!quota.allowed) {
     return res.status(429).json({ ok: false, kept: true, reason: 'quota' });
   }
-  const giveBack = () => usage.refund(req.accountId, 'memory', quota.day).catch((e) => logStorage('remboursement', e));
+  const giveBack = () => usage.refund(req.accountId, 'memory', quota.day).catch((e) => logStorage('refund', e));
 
   let previous;
   try {
     previous = await loadFiche(req.accountId, req.learnerId);
   } catch (e) {
-    logStorage('mémoire', e);
+    logStorage('memory_load', e);
     await giveBack();
     return res.status(503).json({ ok: false, kept: true, reason: 'storage' });
   }
@@ -193,7 +195,7 @@ router.post('/api/nova/memoire', novaAuth, perAccount, async (req, res) => {
   try {
     text = await mistral.chat({ messages: [{ role: 'user', content: prompt }] });
   } catch (e) {
-    console.error('[nova/memoire] appel Mistral échoué :', String(e).slice(0, 200));
+    logError('nova/memoire', 'llm_failed', errorMeta(e));
     await giveBack();
     return res.status(503).json({ ok: false, kept: true, reason: 'llm' });
   }
@@ -201,14 +203,16 @@ router.post('/api/nova/memoire', novaAuth, perAccount, async (req, res) => {
   let parsed;
   try {
     parsed = extractJson(text);
-  } catch (e) {
-    console.error('[nova/memoire] JSON illisible, fiche conservée :', String(e).slice(0, 200));
+  } catch {
+    // Le message d'erreur JSON cite le texte de l'IA : on ne le journalise pas.
+    logError('nova/memoire', 'json_invalid');
     return res.json({ ok: false, kept: true, reason: 'json' });
   }
 
   const validation = parseFiche(parsed);
   if (!validation.ok) {
-    console.error('[nova/memoire] validation Zod échouée, fiche conservée :', validation.error.issues.slice(0, 5));
+    // Seulement le nombre de problèmes : les détails Zod peuvent citer les valeurs reçues.
+    logError('nova/memoire', 'schema_invalid', { count: validation.error.issues.length });
     return res.json({ ok: false, kept: true, reason: 'schema' });
   }
 
@@ -217,7 +221,7 @@ router.post('/api/nova/memoire', novaAuth, perAccount, async (req, res) => {
     const saved = await saveFiche(req.accountId, req.learnerId, fiche);
     return res.json({ ok: true, fiche: saved });
   } catch (e) {
-    logStorage('enregistrement mémoire', e);
+    logStorage('memory_save', e);
     return res.status(503).json({ ok: false, kept: true, reason: 'storage' });
   }
 });

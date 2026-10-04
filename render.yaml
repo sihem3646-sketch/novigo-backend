@@ -36,4 +36,13 @@ services:
         value: "3000"
       - key: NOVA_UNLIMITED_DAILY_LIMIT
         value: "500"
+      # Sécurité (bêta adulte) : voix IA coupée, Nova réservée aux profils Adultes.
+      - key: TTS_ENABLED
+        value: "0"
+      - key: BETA_ADULTS_ONLY
+        value: "1"
+      # Origines de navigateur autorisées : liste par défaut dans lib/cors.js
+      # (novigo.expo.app, mynovigo.fr, www.mynovigo.fr). Pour ajouter une adresse
+      # d'aperçu PRÉCISE, renseigner ALLOWED_ORIGINS (liste complète, sans joker).
+      # TRUST_PROXY_HOPS : nombre de relais devant le serveur (à confirmer chez Render).
       # PORT est fourni automatiquement par Render (le serveur le lit déjà).

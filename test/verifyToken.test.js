@@ -43,7 +43,7 @@ const { verifySupabaseToken, resetJwksCache } = require('../auth/verifyToken');
 
 test('jeton de session valide (ES256) → compte du jeton', async () => {
   resetJwksCache();
-  assert.deepStrictEqual(await verifySupabaseToken(sign({})), { accountId: ACCOUNT });
+  assert.deepStrictEqual(await verifySupabaseToken(sign({})), { accountId: ACCOUNT, passwordAuthAt: null });
 });
 
 test('signature d’une autre clé → refusé', async () => {
@@ -83,7 +83,7 @@ test('ancien secret partagé (HS256) : refusé sans secret configuré, accepté 
   await assert.rejects(verifySupabaseToken(token));
   process.env.SUPABASE_JWT_SECRET = 'secret-de-test';
   try {
-    assert.deepStrictEqual(await verifySupabaseToken(token), { accountId: ACCOUNT });
+    assert.deepStrictEqual(await verifySupabaseToken(token), { accountId: ACCOUNT, passwordAuthAt: null });
     await assert.rejects(verifySupabaseToken(sign({}, { key: 'mauvais-secret', alg: 'HS256', kid: undefined })));
   } finally {
     delete process.env.SUPABASE_JWT_SECRET;

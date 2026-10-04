@@ -76,7 +76,24 @@ async function verifySupabaseToken(token) {
   if (!payload || payload.role !== 'authenticated' || typeof payload.sub !== 'string' || !UUID.test(payload.sub)) {
     throw new Error('jeton sans compte');
   }
-  return { accountId: payload.sub.toLowerCase() };
+  return { accountId: payload.sub.toLowerCase(), passwordAuthAt: passwordAuthAt(payload) };
+}
+
+/**
+ * Date (secondes) de la dernière connexion PAR MOT DE PASSE de cette session,
+ * d'après la revendication `amr` de Supabase ; null si la session vient d'un
+ * autre moyen (lien, rafraîchissement d'une session ancienne n'y change rien :
+ * Supabase garde la date d'origine).
+ */
+function passwordAuthAt(payload) {
+  const amr = Array.isArray(payload.amr) ? payload.amr : [];
+  let at = null;
+  for (const entry of amr) {
+    if (entry && entry.method === 'password' && Number.isFinite(Number(entry.timestamp))) {
+      at = Math.max(at ?? 0, Number(entry.timestamp));
+    }
+  }
+  return at;
 }
 
 /** Tests : oublie le JWKS en cache. */

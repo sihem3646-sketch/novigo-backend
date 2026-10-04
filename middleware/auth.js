@@ -20,6 +20,16 @@ const crypto = require('crypto');
 
 const { verifySupabaseToken, UUID } = require('../auth/verifyToken');
 const sb = require('../fiche/supabase');
+const { logError, errorMeta } = require('../lib/log');
+
+/**
+ * Bêta « adultes d'abord » : seuls les profils Adultes parlent à Nova. Activée
+ * par défaut (configuration sûre) ; BETA_ADULTS_ONLY=0 la lèvera à l'ouverture
+ * des espaces Ados. L'espace Enfant reste toujours sans Nova.
+ */
+function betaAdultsOnly() {
+  return process.env.BETA_ADULTS_ONLY !== '0';
+}
 
 // Codes testeur : on ne garde que leur empreinte SHA-256 (le dépôt est public ;
 // les codes font 24 caractères aléatoires, impossibles à deviner).
@@ -83,7 +93,7 @@ async function novaAuth(req, res, next) {
   try {
     mode = await findLearnerMode(account.accountId, learnerId);
   } catch (e) {
-    console.error('[nova] vérification du profil impossible :', String(e.message).slice(0, 160));
+    logError('nova', 'profile_check_failed', errorMeta(e));
     return res.status(503).json({ error: 'Nova est momentanément indisponible.', retry: true });
   }
   if (mode == null) {
@@ -91,6 +101,9 @@ async function novaAuth(req, res, next) {
   }
   if (mode === 'kids') {
     return res.status(403).json({ error: 'Nova n’est pas disponible dans l’espace Enfant.', code: 'kids' });
+  }
+  if (betaAdultsOnly() && mode !== 'adults') {
+    return res.status(403).json({ error: 'Nova est réservée aux profils Adultes pendant la bêta.', code: 'beta_adults_only' });
   }
 
   req.accountId = account.accountId;
@@ -100,4 +113,10 @@ async function novaAuth(req, res, next) {
   return next();
 }
 
-module.exports = { novaAuth, isVip };
+/** Oublie les profils mis en cache pour un compte (compte supprimé). */
+function forgetAccount(accountId) {
+  const prefix = `${accountId}:`;
+  for (const key of learnerCache.keys()) if (key.startsWith(prefix)) learnerCache.delete(key);
+}
+
+module.exports = { novaAuth, isVip, forgetAccount };

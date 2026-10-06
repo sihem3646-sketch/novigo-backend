@@ -44,7 +44,10 @@ function validate(raw) {
 
 async function upsert({ url, key, fiches, desactiverAbsents }) {
   const endpoint = `${url.replace(/\/+$/, '')}/rest/v1/dispositifs`;
-  const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
+  // Nouvelles clés Supabase (sb_secret_…) : pas des JWT → seulement l'en-tête apikey.
+  // Ancienne clé service_role (JWT) : apikey + Authorization, comme avant.
+  const isNewKey = key.startsWith('sb_');
+  const headers = { apikey: key, ...(isNewKey ? {} : { Authorization: `Bearer ${key}` }), 'Content-Type': 'application/json' };
   for (let i = 0; i < fiches.length; i += BATCH) {
     const lot = fiches.slice(i, i + BATCH);
     const r = await fetch(`${endpoint}?on_conflict=slug`, {

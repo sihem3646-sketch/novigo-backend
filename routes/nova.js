@@ -48,6 +48,27 @@ function sanitizeMessages(input, maxCount, maxLen) {
     .map((m) => ({ role: m.role, content: m.content.slice(0, maxLen) }));
 }
 
+/**
+ * Historique envoyé à l'IA : les messages les plus récents (60 au plus), dans
+ * une limite de taille totale — Nova se souvient de toute une conversation
+ * normale, sans qu'un très long échange ne fasse exploser le coût d'un appel.
+ */
+const HISTORY_MAX_MESSAGES = 60;
+const HISTORY_MAX_CHARS = 24000;
+function recentHistory(input) {
+  const all = sanitizeMessages(input, HISTORY_MAX_MESSAGES, 4000);
+  const kept = [];
+  let total = 0;
+  for (let i = all.length - 1; i >= 0; i--) {
+    total += all[i].content.length;
+    if (total > HISTORY_MAX_CHARS && kept.length > 0) break;
+    kept.unshift(all[i]);
+  }
+  // L'historique commence par un message de la personne (jamais par une réponse orpheline).
+  while (kept.length > 1 && kept[0].role !== 'user') kept.shift();
+  return kept;
+}
+
 function transcript(messages) {
   return sanitizeMessages(messages, 40, 4000)
     .map((m) => `${m.role === 'user' ? 'Utilisateur' : 'Nova'}: ${m.content}`)
@@ -91,7 +112,7 @@ router.post('/api/nova', novaAuth, perAccount, async (req, res) => {
     return res.status(503).json({ error: UNAVAILABLE });
   }
 
-  const messages = sanitizeMessages(req.body && req.body.messages, 20, 4000);
+  const messages = recentHistory(req.body && req.body.messages);
   if (messages.length === 0) {
     return res.status(400).json({ error: 'Champ "messages" requis (liste user/assistant non vide).' });
   }

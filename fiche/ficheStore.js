@@ -7,9 +7,8 @@
 const sb = require('./supabase');
 
 /** Fiche vierge (copie légère du helper `ficheVide` de l'app). */
-function ficheVide(utilisateurId) {
+function ficheVide() {
   return {
-    utilisateurId,
     misAJourLe: new Date().toISOString(),
     profil: {},
     contraintes: {},
@@ -26,12 +25,18 @@ function ficheVide(utilisateurId) {
 /** Fiche du profil (vierge s'il n'en a pas encore). Lève une erreur si Supabase est injoignable. */
 async function loadFiche(accountId, learnerId) {
   const fiche = await sb.rpc('nova_memory_load', { p_account: accountId, p_learner: learnerId });
-  return fiche != null && typeof fiche === 'object' && !Array.isArray(fiche) ? fiche : ficheVide(learnerId);
+  return fiche != null && typeof fiche === 'object' && !Array.isArray(fiche) ? fiche : ficheVide();
 }
 
-/** Enregistre la fiche du profil. L'identifiant interne est forcé (jamais celui du contenu). */
+/**
+ * Enregistre la fiche du profil. Ni identifiant technique (la ligne est déjà
+ * rangée par profil) ni prénom (inutile au coaching) n'y sont gardés.
+ */
 async function saveFiche(accountId, learnerId, fiche) {
-  const toWrite = { ...fiche, utilisateurId: learnerId };
+  const { utilisateurId, ...rest } = fiche;
+  const toWrite = rest.profil != null && typeof rest.profil === 'object'
+    ? { ...rest, profil: (({ prenom, ...p }) => p)(rest.profil) }
+    : rest;
   await sb.rpc('nova_memory_save', { p_account: accountId, p_learner: learnerId, p_fiche: toWrite });
   return toWrite;
 }

@@ -30,8 +30,11 @@ const Decision = z.object({ quoi: txt, pourquoi: txtOpt, date: txt });
 // Les objets Zod « strippent » par défaut les clés inconnues : un champ en trop
 // renvoyé par le LLM est ignoré, il n'entre pas dans la fiche.
 const FicheProjetSchema = z.object({
-  utilisateurId: txt,
-  misAJourLe: txt,
+  // Ni l'un ni l'autre ne part chez Mistral (nova/prompt.js) : la date est
+  // posée par le serveur ; l'identifiant n'est plus stocké (la table est déjà
+  // rangée par profil). Anciennes fiches : acceptés s'ils sont présents.
+  utilisateurId: txtOpt,
+  misAJourLe: txtOpt,
 
   profil: z.object({
     prenom: txtOpt,

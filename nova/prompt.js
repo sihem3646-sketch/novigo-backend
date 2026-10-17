@@ -32,6 +32,20 @@ function parts() {
   return { system, memory };
 }
 
+/**
+ * Fiche telle qu'elle part chez Mistral : sans identifiant technique du profil,
+ * sans prénom, sans date interne (rien de tout cela n'est utile au coaching).
+ */
+function ficheSansIdentite(fiche) {
+  if (fiche == null || typeof fiche !== 'object' || Array.isArray(fiche)) return fiche;
+  const { utilisateurId, misAJourLe, ...reste } = fiche;
+  if (reste.profil != null && typeof reste.profil === 'object') {
+    const { prenom, ...profil } = reste.profil;
+    reste.profil = profil;
+  }
+  return reste;
+}
+
 function fill(tpl, map) {
   return tpl.replace(/\{\{(\w+)\}\}/g, (m, key) => (key in map ? map[key] : m));
 }
@@ -42,7 +56,7 @@ function buildSystemPrompt({ fiche, lessonContext }) {
     ? String(lessonContext).trim()
     : '(conversation libre — aucune leçon en cours)';
   return fill(parts().system, {
-    FICHE_PROJET: JSON.stringify(fiche, null, 2),
+    FICHE_PROJET: JSON.stringify(ficheSansIdentite(fiche), null, 2),
     CONTEXTE_LECON: ctx,
   });
 }
@@ -50,9 +64,9 @@ function buildSystemPrompt({ fiche, lessonContext }) {
 /** Prompt de mise à jour de la fiche (2e prompt), fiche + conversation injectées. */
 function buildMemoryPrompt({ fiche, conversation }) {
   return fill(parts().memory, {
-    FICHE_PROJET: JSON.stringify(fiche, null, 2),
+    FICHE_PROJET: JSON.stringify(ficheSansIdentite(fiche), null, 2),
     CONVERSATION: conversation,
   });
 }
 
-module.exports = { buildSystemPrompt, buildMemoryPrompt };
+module.exports = { buildSystemPrompt, buildMemoryPrompt, ficheSansIdentite };

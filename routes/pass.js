@@ -23,7 +23,7 @@ const express = require('express');
 const { verifySupabaseToken, UUID } = require('../auth/verifyToken');
 const sbDefault = require('../fiche/supabase');
 const { getStripe: getStripeDefault } = require('../pass/stripeClient');
-const { CATALOG, PASS_MONTHS, openProducts, founderCap } = require('../pass/catalog');
+const { CATALOG, NOVA_MONTHS, openProducts, founderCap } = require('../pass/catalog');
 const { allowedOrigins } = require('../lib/cors');
 const { rateLimit } = require('../middleware/rateLimit');
 const { logError, errorMeta } = require('../lib/log');
@@ -90,7 +90,8 @@ function createPassRouter({ verify = verifySupabaseToken, sb = sbDefault, getStr
     const product = String(meta.product || '');
     if (!UUID.test(accountId) || CATALOG[product] == null) return null;
     const reservation = UUID.test(String(meta.reservation_id || '')) ? String(meta.reservation_id) : null;
-    const months = Number(meta.months) || PASS_MONTHS;
+    // Parcours à vie (pas de durée) ; Nova étendue pendant la durée indiquée à l'achat.
+    const novaMonths = Number(meta.nova_months) || NOVA_MONTHS;
     const waivedAt = typeof meta.retractation_waived_at === 'string' && !Number.isNaN(Date.parse(meta.retractation_waived_at))
       ? meta.retractation_waived_at
       : null;
@@ -107,7 +108,8 @@ function createPassRouter({ verify = verifySupabaseToken, sb = sbDefault, getStr
       p_currency: String(session.currency || 'eur'),
       p_livemode: Boolean(session.livemode),
       p_reservation: reservation,
-      p_months: months,
+      p_months: null,
+      p_nova_months: novaMonths,
       p_waived_at: waivedAt,
     });
   }
@@ -131,7 +133,8 @@ function createPassRouter({ verify = verifySupabaseToken, sb = sbDefault, getStr
         name: item.name,
         description: item.description,
         price: item.price,
-        months: PASS_MONTHS,
+        lifetime: true,
+        novaMonths: NOVA_MONTHS,
         founder: cap > 0 && item.founderPrice != null ? { price: item.founderPrice, cap, left } : null,
       };
     }));
@@ -167,6 +170,19 @@ function createPassRouter({ verify = verifySupabaseToken, sb = sbDefault, getStr
       return res.status(400).json({ error: 'Adresse de retour refusée.', code: 'return_url_invalid' });
     }
 
+    // Parcours à vie : on ne vend pas deux fois le même Pass au même compte.
+    try {
+      const owned = await sb.request(
+        `passes?account_id=eq.${encodeURIComponent(req.accountId)}&product=eq.${encodeURIComponent(product)}&status=eq.paid&or=(ends_at.is.null,ends_at.gt.now())&select=id&limit=1`,
+      );
+      if (Array.isArray(owned) && owned.length > 0) {
+        return res.status(409).json({ error: 'Tu as déjà ce Pass : tout est ouvert.', code: 'already_owned' });
+      }
+    } catch (e) {
+      logError('pass', 'owned_check_failed', errorMeta(e));
+      return res.status(503).json({ error: 'Service momentanément indisponible.', retry: true });
+    }
+
     const item = CATALOG[product];
     const wantsFounder = body.founder === true && item.founderPrice != null && founderCap(product, env) > 0;
     let reservation = null;
@@ -200,7 +216,8 @@ function createPassRouter({ verify = verifySupabaseToken, sb = sbDefault, getStr
       product,
       founder: wantsFounder ? '1' : '0',
       reservation_id: reservation || '',
-      months: String(PASS_MONTHS),
+      access: 'vie',
+      nova_months: String(NOVA_MONTHS),
       retractation_waived_at: waivedAt,
     };
 

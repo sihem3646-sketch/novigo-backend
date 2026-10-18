@@ -23,6 +23,12 @@ function fakeSb(responses = {}) {
   return {
     calls,
     configured: () => true,
+    request: async (path) => {
+      calls.push({ name: 'request', path });
+      const r = responses.request;
+      if (r instanceof Error) throw r;
+      return typeof r === 'function' ? r(path) : r ?? [];
+    },
     rpc: async (name, args) => {
       calls.push({ name, args });
       const r = responses[name];
@@ -150,7 +156,10 @@ test('checkout : le prix vient du serveur (119 €), pas de la requête', async 
     assert.strictEqual(params.success_url, `${ORIGIN}/pass-merci?session_id={CHECKOUT_SESSION_ID}`);
     assert.ok(params.invoice_creation.enabled);
     assert.match(params.invoice_creation.invoice_data.footer, /293 B/);
-    assert.strictEqual(sb.calls.length, 0, 'aucune réservation sans prix Fondateur');
+    assert.ok(!sb.calls.some((c) => c.name === 'pass_founder_reserve'), 'aucune réservation sans prix Fondateur');
+    assert.strictEqual(params.metadata.access, 'vie');
+    assert.strictEqual(params.metadata.nova_months, '12');
+    assert.match(params.line_items[0].price_data.product_data.description, /à vie/);
   });
 });
 
@@ -188,6 +197,21 @@ test('checkout : si Stripe échoue, la place Fondateur est libérée', async () 
   });
 });
 
+test('checkout : un Pass à vie déjà acheté ne se rachète pas', async () => {
+  const sb = fakeSb({ request: [{ id: 'deja' }] });
+  const stripe = fakeStripe();
+  await withServer({ sb, stripe }, async (base) => {
+    const r = await post(base, '/api/pass/checkout', checkoutBody({ founder: true }), 'tok-A');
+    assert.strictEqual(r.status, 409);
+    assert.strictEqual((await r.json()).code, 'already_owned');
+    assert.strictEqual(stripe.created.length, 0);
+    assert.ok(!sb.calls.some((c) => c.name === 'pass_founder_reserve'), 'aucune place réservée');
+    const q = sb.calls.find((c) => c.name === 'request').path;
+    assert.match(q, /account_id=eq\.11111111-1111-4111-8111-111111111111/);
+    assert.match(q, /product=eq\.novigo/);
+  });
+});
+
 test('checkout : paiement fermé tant que Stripe n’est pas configuré', async () => {
   await withServer({ sb: fakeSb(), stripe: null }, async (base) => {
     const r = await post(base, '/api/pass/checkout', checkoutBody(), 'tok-A');
@@ -220,7 +244,7 @@ test('retour du paiement : seul le compte acheteur peut activer son Pass', async
   await withServer({ sb, stripe }, async (base) => {
     let r = await fetch(`${base}/api/pass/session/cs_test_a1b2c3d4e5f6g7h8`, { headers: { Authorization: 'Bearer tok-B' } });
     assert.strictEqual(r.status, 404);
-    assert.strictEqual(sb.calls.length, 0);
+    assert.ok(!sb.calls.some((c) => c.name === 'pass_record_paid'));
     r = await fetch(`${base}/api/pass/session/pas-une-session`, { headers: { Authorization: 'Bearer tok-A' } });
     assert.strictEqual(r.status, 400);
     r = await fetch(`${base}/api/pass/session/cs_test_a1b2c3d4e5f6g7h8`, { headers: { Authorization: 'Bearer tok-A' } });
@@ -230,7 +254,8 @@ test('retour du paiement : seul le compte acheteur peut activer son Pass', async
     assert.strictEqual(rec.p_amount, 4999);
     assert.strictEqual(rec.p_founder, true);
     assert.strictEqual(rec.p_payment_intent, 'pi_123');
-    assert.strictEqual(rec.p_months, 12);
+    assert.strictEqual(rec.p_months, null, 'parcours à vie');
+    assert.strictEqual(rec.p_nova_months, 12);
     assert.strictEqual(rec.p_waived_at, '2026-10-18T10:00:00.000Z');
   });
 });

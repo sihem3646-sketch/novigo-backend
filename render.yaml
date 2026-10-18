@@ -41,6 +41,17 @@ services:
         value: "0"
       - key: BETA_ADULTS_ONLY
         value: "1"
+      # Pass (paiement Stripe) : clés à saisir dans Render. Tant que
+      # STRIPE_SECRET_KEY est vide, le paiement reste fermé (503). Une clé de
+      # production n'est acceptée qu'avec PAYMENTS_LIVE=1.
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: PAYMENTS_LIVE
+        value: "0"
+      - key: PASS_PRODUCTS
+        value: novigo
       # Origines de navigateur autorisées : liste par défaut dans lib/cors.js
       # (novigo.expo.app, mynovigo.fr, www.mynovigo.fr). Pour ajouter une adresse
       # d'aperçu PRÉCISE, renseigner ALLOWED_ORIGINS (liste complète, sans joker).

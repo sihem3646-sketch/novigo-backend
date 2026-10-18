@@ -19,6 +19,13 @@ app.set('trust proxy', Number.isInteger(hops) && hops >= 0 ? hops : true);
 app.disable('x-powered-by');
 // Origines de navigateur autorisées (liste stricte, voir lib/cors.js).
 app.use(corsGuard());
+
+// Pass (paiement Stripe) : les notifications signées de Stripe sont lues sur le
+// corps BRUT (la signature porte dessus), donc avant express.json().
+const { createPassRouter, createStripeWebhook } = require('./routes/pass');
+const pass = createPassRouter();
+app.use(createStripeWebhook({ handlers: pass }));
+
 app.use(express.json());
 
 // Coach Nova (programme Adultes) : POST /api/nova (stream) + /api/nova/memoire + /api/nova/quota.
@@ -32,6 +39,9 @@ app.use(require('./routes/annuaire'));
 
 // Droits sur les données : supprimer son compte, exporter ses données Nova.
 app.use(require('./routes/account'));
+
+// Achat d'un Pass : offres, ouverture du paiement Stripe, vérification au retour.
+app.use(pass.router);
 
 const PORT = process.env.PORT || 8787;
 const ELEVEN_KEY = process.env.ELEVENLABS_API_KEY || '';

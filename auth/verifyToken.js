@@ -50,7 +50,7 @@ async function publicKeyFor(kid) {
 }
 
 /**
- * Vérifie un jeton de session. Renvoie { accountId } ou lève une erreur.
+ * Vérifie un jeton de session. Renvoie { accountId, passwordAuthAt, email } ou lève une erreur.
  * Jamais de repli : un jeton douteux est refusé.
  */
 async function verifySupabaseToken(token) {
@@ -76,7 +76,9 @@ async function verifySupabaseToken(token) {
   if (!payload || payload.role !== 'authenticated' || typeof payload.sub !== 'string' || !UUID.test(payload.sub)) {
     throw new Error('jeton sans compte');
   }
-  return { accountId: payload.sub.toLowerCase(), passwordAuthAt: passwordAuthAt(payload) };
+  // Email du compte (vérifié par la signature) : sert seulement à pré-remplir le paiement.
+  const email = typeof payload.email === 'string' && payload.email.includes('@') ? payload.email : null;
+  return { accountId: payload.sub.toLowerCase(), passwordAuthAt: passwordAuthAt(payload), email };
 }
 
 /**

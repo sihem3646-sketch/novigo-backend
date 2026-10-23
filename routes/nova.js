@@ -6,8 +6,8 @@
 // Identité : middleware novaAuth (compte Supabase vérifié + profil du compte — jamais le body).
 // Mémoire : par PROFIL ; quotas : par COMPTE ; les deux dans Supabase (migration 0005).
 //
-// Quotas (nova/plans.js, réglables) : formule « free » = 20 messages par mois et
-// 5 par jour au plus ; « tester » = sécurité invisible ; « premium » prêt, non
+// Quotas (nova/plans.js, réglables) : formule « free » = 30 messages par mois et
+// 10 par jour au plus ; « tester » = sécurité invisible ; « premium » prêt, non
 // attribué. Plus un garde-fou de coût global par jour, et un limiteur de rafales.
 // Si l'IA échoue (surcharge, panne), le message est RENDU et l'app peut réessayer.
 

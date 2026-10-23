@@ -1,7 +1,7 @@
 // nova/plans.js
 // Plafonds de Nova par FORMULE — seule source des quotas : le serveur décide,
 // jamais l'app ni l'appareil. Tous réglables par variables d'environnement.
-//   • free    : aujourd'hui, tout compte (20 messages par mois, 5 par jour au plus) ;
+//   • free    : aujourd'hui, tout compte (30 messages par mois, 10 par jour au plus) ;
 //   • tester  : code testeur vérifié par le serveur — pas de compteur affiché,
 //               seulement une sécurité invisible contre les abus ;
 //   • premium : prêt (plafonds plus hauts, réglables) mais attribué à personne
@@ -20,7 +20,7 @@ function plans() {
   return {
     free: {
       visible: true,
-      chat: { daily: num('NOVA_FREE_DAILY_LIMIT', 5), monthly: num('NOVA_FREE_MONTHLY_LIMIT', 20) },
+      chat: { daily: num('NOVA_FREE_DAILY_LIMIT', 10), monthly: num('NOVA_FREE_MONTHLY_LIMIT', 30) },
       memory: { daily: num('NOVA_FREE_MEMORY_DAILY_LIMIT', 8), monthly: null },
     },
     premium: {

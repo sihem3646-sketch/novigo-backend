@@ -40,6 +40,9 @@ app.use(require('./routes/annuaire'));
 // Droits sur les données : supprimer son compte, exporter ses données Nova.
 app.use(require('./routes/account'));
 
+// Bêta en libre inscription : le lien testeurs demande 30 jours d'accès (une fois).
+app.use(require('./routes/beta'));
+
 // Achat d'un Pass : offres, ouverture du paiement Stripe, vérification au retour.
 app.use(pass.router);
 

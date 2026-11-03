@@ -14,7 +14,11 @@
 // n'est jamais cru.
 //   req.accountId -> clé des quotas (par compte)
 //   req.learnerId -> clé de la mémoire de Nova (par profil)
-//   req.plan      -> 'free' | 'tester' (et plus tard 'premium')
+//   req.plan      -> 'tester' (code testeur) | 'beta' (accès testeur) | 'free' (et plus tard 'premium')
+//  4) Accès testeur (table testeurs_acces, migration 0011) : adresse CONFIRMÉE du
+//     compte autorisée par Sarah, accès en cours → formule « beta » (50 messages
+//     par jour, 500 par mois). Lu en base (fonction acces_testeur_du_compte), gardé
+//     1 minute ; fonction absente ou base injoignable = pas d'accès testeur.
 
 const crypto = require('crypto');
 
@@ -68,6 +72,27 @@ async function findLearnerMode(accountId, learnerId) {
   return mode;
 }
 
+// Comptes avec un accès testeur en cours, gardés 1 minute (un accès retiré
+// s'arrête donc au plus 1 minute après).
+const TESTER_TTL_MS = 60 * 1000;
+const testerCache = new Map();
+
+async function hasTesterAccess(accountId) {
+  const hit = testerCache.get(accountId);
+  if (hit != null && Date.now() - hit.at < TESTER_TTL_MS) return hit.on;
+  let on = false;
+  try {
+    const until = await sb.rpc('acces_testeur_du_compte', { p_account: accountId });
+    on = typeof until === 'string' && Date.parse(until) > Date.now();
+  } catch (e) {
+    // 404 : fonction pas encore créée (0011 non appliquée) — normal, rien à signaler.
+    if (e == null || e.status !== 404) logError('nova', 'tester_check_failed', errorMeta(e));
+  }
+  testerCache.set(accountId, { on, at: Date.now() });
+  if (testerCache.size > 20000) testerCache.clear();
+  return on;
+}
+
 async function novaAuth(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
@@ -109,14 +134,16 @@ async function novaAuth(req, res, next) {
   req.accountId = account.accountId;
   req.learnerId = learnerId;
   req.learnerMode = mode;
-  req.plan = isVip(req) ? 'tester' : 'free';
+  if (isVip(req)) req.plan = 'tester';
+  else req.plan = (await hasTesterAccess(account.accountId)) ? 'beta' : 'free';
   return next();
 }
 
-/** Oublie les profils mis en cache pour un compte (compte supprimé). */
+/** Oublie les profils et l'accès testeur mis en cache pour un compte (compte supprimé). */
 function forgetAccount(accountId) {
   const prefix = `${accountId}:`;
   for (const key of learnerCache.keys()) if (key.startsWith(prefix)) learnerCache.delete(key);
+  testerCache.delete(accountId);
 }
 
-module.exports = { novaAuth, isVip, forgetAccount };
+module.exports = { novaAuth, isVip, forgetAccount, hasTesterAccess };

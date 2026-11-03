@@ -4,6 +4,8 @@
 //   • free    : aujourd'hui, tout compte (30 messages par mois, 10 par jour au plus) ;
 //   • tester  : code testeur vérifié par le serveur — pas de compteur affiché,
 //               seulement une sécurité invisible contre les abus ;
+//   • beta    : accès testeur par email (migration 0011, lien testeurs) — 50 messages
+//               par jour et 500 par mois, comptés par le serveur comme les autres ;
 //   • premium : prêt (plafonds plus hauts, réglables) mais attribué à personne
 //               tant que les abonnements n'existent pas.
 // Les mises à jour de la mémoire (appel IA en coulisse) ont leurs propres
@@ -27,6 +29,11 @@ function plans() {
       visible: true,
       chat: { daily: num('NOVA_PREMIUM_DAILY_LIMIT', 50), monthly: num('NOVA_PREMIUM_MONTHLY_LIMIT', 500) },
       memory: { daily: num('NOVA_PREMIUM_MEMORY_DAILY_LIMIT', 60), monthly: null },
+    },
+    beta: {
+      visible: true,
+      chat: { daily: num('NOVA_BETA_DAILY_LIMIT', 50), monthly: num('NOVA_BETA_MONTHLY_LIMIT', 500) },
+      memory: { daily: num('NOVA_BETA_MEMORY_DAILY_LIMIT', 60), monthly: null },
     },
     tester: {
       visible: false,
